@@ -1,5 +1,8 @@
 """CycleGen SaaS層パッケージ
 
+★Core配布物では Enterprise拡張点として常在する no-op シムのみ（context/guard）。
+実体（認証・マルチテナント・Quota等）は Enterprise で加算される。Coreでは常に無効。
+
 CYCLEGEN_MODE=saas のときだけ有効化される認証・マルチテナント・Quota層。
 既存のcore/search/persistenceには手を入れず、ミドルウェアとして分離する。
 

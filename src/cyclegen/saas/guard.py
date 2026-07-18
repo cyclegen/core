@@ -1,5 +1,9 @@
 """MCPツール層ガード関数
 
+★Enterprise拡張点。各MCPツール先頭が無条件に呼ぶフック点だが、Coreでは
+is_saas_mode()==False で即 return する no-op（Quota/レート制限は Enterprise のみ）。
+この呼び出し点が残ることで、ツール層を Core/Enterprise で分岐させず single source を保つ。
+
 各MCPツールの先頭で呼び出し、Quota/レート制限をチェックする。
 SaaSモード以外ではno-op（何もしない）。
 

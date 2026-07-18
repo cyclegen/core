@@ -1,5 +1,7 @@
 """SaaSリクエストスコープのContextVar定義
 
+★Enterprise拡張点。Coreでは誰も値を入れず is_saas_mode() は常に False（no-op）。
+
 SaaSAuthMiddlewareがリクエストごとにowner_idとcurrent_userを設定し、
 下流のPersistence/Guard層がContextVar経由で参照する。
 
