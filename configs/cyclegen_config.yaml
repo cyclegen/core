@@ -1,0 +1,59 @@
+# CycleGen Enterprise ローカル設定テンプレート
+# このファイルを ~/.cyclegen/cyclegen_config.yaml にコピーして使用
+
+# ホームディレクトリ（記憶mdファイル・SQLiteインデックスの保存先）
+home: "~/.cyclegen"
+
+# Personal Layer SQLiteインデックスファイル名
+personal_db: "index.db"
+
+# --- 記憶ソース設定（設計書v2 §1.3 Memory Source Resolver） ---
+# memory_sources が定義されている場合、旧設定（org_server_*）より優先される。
+# 未定義の場合は旧設定にフォールバック。
+#
+# memory_sources:
+#   - name: personal
+#     backend: local              # local | postgresql | cloud
+#     # owner_id: ${CYCLEGEN_OWNER_ID:jay}  # テナント分離用
+#   - name: org
+#     backend: cloud
+#     url: https://cyclegen-org-xxx.run.app
+#     api_key: ${CYCLEGEN_ORG_API_KEY:}
+#
+# パターン3/4（Cloud上のPersonal）:
+#   - name: personal
+#     backend: postgresql
+#     dsn: ${CYCLEGEN_DATABASE_URL}
+#     table: personal_memories
+#     owner_id: ${CYCLEGEN_OWNER_ID}
+
+# --- 統合検索バルブ設定 ---
+valve:
+  local_bonus: 20              # ローカルソースへのスコア加算（旧personal_bonus）
+  source_min_slots:             # ソースごとの最低保証枠（旧org_min_slots）
+    org: 2
+  meta_max_items: 3            # メタ認知チャネル（L5）の最大件数
+
+# --- 旧設定（後方互換: memory_sources未定義時に使用） ---
+org_server_enabled: false
+org_server_url: ""
+org_api_key: ""
+org_timeout_ms: 3000
+
+# --- 検索設定 ---
+# Miller's 7±2 法則に基づくデフォルト最大返却件数
+default_max_items: 7
+
+# 旧統合検索パラメータ（memory_sources未定義時に使用）
+personal_bonus: 20
+org_min_slots: 2
+
+# スコアリング重み（100点満点配分）
+scoring_weights:
+  keyword_frequency: 40
+  exact_match: 30
+  priority: 20
+  access_count: 10
+
+# Context定義ファイル（$home からの相対パス）
+contexts_file: "enterprise_contexts.yaml"

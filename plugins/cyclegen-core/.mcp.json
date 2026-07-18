@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "cyclegen": {
+      "type": "stdio",
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/cyclegen-mcp-launch.sh",
+      "args": [],
+      "env": {}
+    }
+  }
+}

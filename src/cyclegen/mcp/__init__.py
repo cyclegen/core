@@ -1,0 +1,1 @@
+"""CycleGen MCP — ローカルMCPサーバー"""

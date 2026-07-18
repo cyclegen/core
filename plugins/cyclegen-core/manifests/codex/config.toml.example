@@ -1,0 +1,22 @@
+# CycleGen — Codex CLI 用 MCP 設定（~/.codex/config.toml へ追記）
+#
+# Claude Code の .mcp.json（JSON・mcpServers・${CLAUDE_PLUGIN_ROOT}相対）の読み替え版。
+# Codex には ${CLAUDE_PLUGIN_ROOT} 相当の変数展開が無いため、command は
+#   (推奨) PATH 上のバイナリ名 "cyclegen-mcp"      ← pip 配布後はこれだけで動く
+#   (暫定) 絶対パス "/abs/path/to/.venv/bin/cyclegen-mcp"
+# のいずれかで指定する。
+#
+# 出典: developers.openai.com/codex/mcp ／ docs/design/CYCLE14.9_FR034-F4-3_Codex調査とmanifest.md §1.4/§2.1
+
+# --- 推奨: pip 配布で PATH に乗せた場合 ---
+[mcp_servers.cyclegen]
+command = "cyclegen-mcp"
+args = []
+# env を渡す場合は下のサブテーブルで（不要なら省略可）
+# [mcp_servers.cyclegen.env]
+# CYCLEGEN_HOME = "~/.cyclegen"
+
+# --- 暫定: 同一リポの venv を直接指す場合（PATH 未整備時） ---
+# [mcp_servers.cyclegen]
+# command = "/ABSOLUTE/PATH/TO/_CycleGen_Ent/cyclegen/.venv/bin/cyclegen-mcp"
+# args = []

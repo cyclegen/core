@@ -1,0 +1,92 @@
+# CycleGen Finish Template: Modern
+# モダンでエネルギッシュなスタイル
+
+name: Modern
+description: モダンでエネルギッシュなスタイル
+
+page:
+  margin_top: 2.0
+  margin_bottom: 2.0
+  margin_left: 2.5
+  margin_right: 2.5
+
+colors:
+  primary: "1A1A2E"       # ダークネイビー
+  secondary: "16213E"     # ディープブルー
+  accent: "0F3460"        # ミッドナイトブルー
+  text: "333333"          # 本文
+
+title:
+  font: "Arial"
+  size: 28
+  color: "1A1A2E"
+  bold: true
+  alignment: left
+
+heading2:
+  font: "Arial"
+  size: 14
+  color: "1A1A2E"
+  bold: true
+  border_bottom: true
+  border_color: "0F3460"
+  space_before: 16
+  space_after: 6
+
+heading3:
+  font: "Arial"
+  size: 11.5
+  color: "16213E"
+  bold: true
+  space_before: 12
+  space_after: 4
+
+heading4:
+  font: "Arial"
+  size: 11
+  color: "16213E"
+  bold: true
+  space_before: 10
+  space_after: 3
+
+heading5:
+  font: "Arial"
+  size: 10.5
+  color: "333333"
+  bold: false
+  italic: true
+  space_before: 8
+  space_after: 2
+
+body:
+  font: "Arial"
+  size: 10.5
+  color: "333333"
+  line_spacing: 1.5
+  space_before: 4          # pt
+  space_after: 4
+
+list:
+  font: "Arial"
+  size: 10.5
+  color: "333333"
+  indent: 1.0
+
+table:
+  header_bg: "1A1A2E"
+  header_text: "FFFFFF"
+  header_font: "Arial"
+  header_size: 10
+  body_font: "Arial"
+  body_size: 10
+  border_color: "D0D0D0"
+
+metadata:
+  font: "Arial"
+  size: 10
+  color: "666666"
+
+footer:
+  font: "Arial"
+  size: 8
+  color: "AAAAAA"

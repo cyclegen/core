@@ -1,0 +1,92 @@
+# CycleGen Finish Template: Wa-Modern
+# 和テイスト・日本市場向けスタイル
+
+name: Wa-Modern
+description: 和の美意識を取り入れたモダンジャパニーズスタイル
+
+page:
+  margin_top: 3.0
+  margin_bottom: 3.0
+  margin_left: 2.5
+  margin_right: 2.5
+
+colors:
+  primary: "2D4A3E"       # 深緑（常盤色）
+  secondary: "8B6914"     # 金茶
+  accent: "C0392B"        # 朱色
+  text: "3C3C3C"          # 墨色
+
+title:
+  font: "Georgia"
+  size: 24
+  color: "2D4A3E"
+  bold: true
+  alignment: left
+
+heading2:
+  font: "Georgia"
+  size: 14
+  color: "2D4A3E"
+  bold: true
+  border_bottom: true
+  border_color: "8B6914"
+  space_before: 20
+  space_after: 8
+
+heading3:
+  font: "Georgia"
+  size: 12
+  color: "8B6914"
+  bold: true
+  space_before: 14
+  space_after: 4
+
+heading4:
+  font: "Georgia"
+  size: 11
+  color: "2D4A3E"
+  bold: true
+  space_before: 12
+  space_after: 3
+
+heading5:
+  font: "Georgia"
+  size: 10.5
+  color: "5A5A5A"
+  bold: false
+  italic: true
+  space_before: 8
+  space_after: 2
+
+body:
+  font: "Georgia"
+  size: 10.5
+  color: "3C3C3C"
+  line_spacing: 1.8
+  space_before: 4          # pt
+  space_after: 4
+
+list:
+  font: "Georgia"
+  size: 10.5
+  color: "3C3C3C"
+  indent: 1.0
+
+table:
+  header_bg: "2D4A3E"
+  header_text: "F5F0E8"
+  header_font: "Georgia"
+  header_size: 10
+  body_font: "Georgia"
+  body_size: 10
+  border_color: "C8C3B8"
+
+metadata:
+  font: "Georgia"
+  size: 10
+  color: "8C8C8C"
+
+footer:
+  font: "Georgia"
+  size: 8
+  color: "AAAAAA"

@@ -1,0 +1,92 @@
+# CycleGen Finish Template: Minimal
+# 白背景・サンセリフ・クリーンなデザイン
+
+name: Minimal
+description: 白背景・サンセリフ体のクリーンなデザイン
+
+page:
+  margin_top: 2.5
+  margin_bottom: 2.5
+  margin_left: 2.5
+  margin_right: 2.5
+
+colors:
+  primary: "222222"
+  secondary: "555555"
+  accent: "888888"
+  text: "333333"
+
+title:
+  font: "Helvetica"
+  size: 22
+  color: "222222"
+  bold: true
+  alignment: left
+
+heading2:
+  font: "Helvetica"
+  size: 13
+  color: "222222"
+  bold: true
+  border_bottom: false
+  border_color: "CCCCCC"
+  space_before: 16
+  space_after: 6
+
+heading3:
+  font: "Helvetica"
+  size: 11
+  color: "555555"
+  bold: true
+  space_before: 10
+  space_after: 4
+
+heading4:
+  font: "Helvetica"
+  size: 10.5
+  color: "555555"
+  bold: true
+  space_before: 8
+  space_after: 3
+
+heading5:
+  font: "Helvetica"
+  size: 10
+  color: "777777"
+  bold: false
+  italic: true
+  space_before: 6
+  space_after: 2
+
+body:
+  font: "Helvetica"
+  size: 10.5
+  color: "333333"
+  line_spacing: 1.4
+  space_before: 4          # pt
+  space_after: 4
+
+list:
+  font: "Helvetica"
+  size: 10.5
+  color: "333333"
+  indent: 1.0
+
+table:
+  header_bg: "F5F5F5"
+  header_text: "222222"
+  header_font: "Helvetica"
+  header_size: 10
+  body_font: "Helvetica"
+  body_size: 10
+  border_color: "DDDDDD"
+
+metadata:
+  font: "Helvetica"
+  size: 10
+  color: "777777"
+
+footer:
+  font: "Helvetica"
+  size: 8
+  color: "BBBBBB"

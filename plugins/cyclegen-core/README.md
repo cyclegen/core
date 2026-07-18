@@ -1,0 +1,70 @@
+# cyclegen-core プラグイン
+
+CycleGenプロトコル（1時間1サイクルの人間-AI協働・PDCA承認ゲート・スキル記憶ストア）を
+プラグインとして配布する。検証ゲートは **「CLAUDE.md 手編集ゼロでサイクルがターンをまたいで回る」**。
+
+- 暫定ターゲット: **Claude Code（フル対応）＋ Codex CLI**。残り3ツール（Cursor/Antigravity/Cowork）は層1+2で劣化許容。
+- 設計出典: `docs/design/CYCLE14_FR034-F1_配布棚卸し設計.md`（F1）／`CYCLE14.7_FR034-F4_配布層設計.md`（F4）／`CYCLE14.9_FR034-F4-3_Codex調査とmanifest.md`（Codex読み替え）
+
+## 構成
+```
+cyclegen-core/
+├── .claude-plugin/plugin.json   マニフェスト
+├── .mcp.json                    ★ローカル cyclegen-mcp(stdio) 直結（設計原則13「1入口方式」）
+├── hooks/
+│   ├── hooks.json               配線（UserPromptSubmit / Pre・PostToolUse）
+│   └── *.sh                     6本（remind-primer / remind-cycle-memory / check-cycle-complete /
+│                                remind-context-judgment / remind-knowledge-proposal / remind-profile-update）
+├── skills/
+│   ├── cyclegen/SKILL.md         ★明示フロントドア（disable-model-invocation・start/finish/memory/mode<x>）
+│   ├── init/SKILL.md             ★明示init（標準ディレクトリ＋薄い層2 CLAUDE.md を生成）
+│   ├── cyclegen-cycle/SKILL.md   〔自動起動〕PDCA・承認ゲート・完了処理・git・標準ディレクトリ構造
+│   ├── cyclegen-memory/SKILL.md  〔自動起動〕Layer/Context判定・よい記憶の書き方・トリガー語
+│   ├── cyclegen-glossary/SKILL.md 〔自動起動〕用語定義・思考の枠組み
+│   └── cyclegen-ops/SKILL.md     〔自動起動〕ツール固有操作（/clear・状態更新・Finish）
+├── agents/
+│   └── cyclegen-persona.md       人格テンプレ雛形（デフォルト非起動・{{AI_NAME}}変数化）
+└── manifests/
+    └── codex/                    ★Codex CLI 用の配線読み替えテンプレート（F4-3）
+```
+
+スキルは**二重起動**: 4スキル（cycle/memory/glossary/ops）は description で**自動起動**、
+フロントドア/init は `disable-model-invocation:true` の**明示起動専用**。
+
+## 導入手順（Claude Code）
+```
+# 1. 導入（開発反復は --plugin-dir、本番は自前マーケットプレイス）
+claude --plugin-dir ./plugins/cyclegen-core
+#   編集 → /reload-plugins で反復
+
+# 2. プロジェクト初期化（標準ディレクトリ＋薄い層2 CLAUDE.md を生成）
+/cyclegen-core:init
+
+# 3. 初CYCLE開始
+/cyclegen-core:cyclegen start      # 省略形 /cyclegen start が効けばそれでも可
+```
+- 思考モード明示指定: `/cyclegen-core:cyclegen mode review`（review/analyze/decide/create… 12種）
+- 名前空間はプラグイン名 `cyclegen-core`。曖昧性が無ければプレフィックス省略可（`/cyclegen ...`）。
+
+## 各ツール対応状況
+| 層 | 機構 | Claude Code | Codex CLI | 他3ツール |
+|----|------|------------|-----------|----------|
+| MCP（濠の本体） | スキル記憶ストア22ツール | `.mcp.json`（stdio直結） | `~/.codex/config.toml`（TOML読み替え） | MCP対応なら可 |
+| Skill本文 | 4自動起動スキル（agentskills.io標準） | `skills/<name>/` | `.agents/skills/<name>/`（同一標準・コピー） | 標準採用ツールは流用可 |
+| hook | 常時規律の毎ターン強化 | `hooks/hooks.json` | `~/.codex/hooks.json`（同名イベント） | 劣化許容 |
+| 明示コマンド | フロントドア/init | `/cyclegen-core:*`（skills＋disable-model-invocation） | `/prompts:cyclegen(-init)`（明示・deprecated機構） | 自然言語劣化 |
+| 指示ファイル（層2） | 常時規律フォールバック | `CLAUDE.md` | `AGENTS.md` | `AGENTS.md`/相当 |
+
+Codex への配置は `manifests/codex/README.md` 参照（共通ペイロードは流用・配線のみ読み替え）。
+劣化の優先順位は「**MCP ＞ 指示ファイル本文 ＞ hook**」の3層耐久モデル（hook無効ツールでもグレースフルに劣化）。
+
+## 既知の保留（解決済みは消し込み）
+**解決済み**: description自動起動調整（F3-a/CYCLE14.5）／本文移植（F3-b/CYCLE14.6）／
+UserPromptSubmit薄いプライマー `remind-primer.sh`（CYCLE14.3）／フロントドア・init（F4実装①/CYCLE14.8）／
+Codex manifest・`.agents/skills/`標準パス確定（F4-3/CYCLE14.9）／3層フォールバック配線（Codex manifest＋AGENTS.md自然言語/CYCLE14.9）。
+
+**残**:
+- **`.mcp.json` の command がリポ相対**（`${CLAUDE_PLUGIN_ROOT}/../../cyclegen/.venv/bin/cyclegen-mcp`）= 同一リポ前提。真の配布では **pip 配布＋PATH バイナリ** へ一般化（F1 §11）。Codex側は既にPATH前提で記述済（`manifests/codex/config.toml.example`）。
+- **本体リファインとの同期方式**（軸A）= (c)ハイブリッド確定（MCPは直結で自動最新／Skill・hook本文はスナップショット＋re-sync）。**本体が別リポ化した時点で再評価**（現在は同一リポで乖離リスク小）。
+- **`permissions.allow`**: 利用者固有のため配布除外（F1 H7）。
+- **実発火検証**（スラッシュ起動・`disable-model-invocation`・init生成・Codex hooks.jsonネスト）はJAY環境の対話起動（`claude --plugin-dir` / Codex `/hooks`）に委譲。

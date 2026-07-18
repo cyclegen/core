@@ -1,0 +1,9 @@
+# Codex 明示専用制御サイドカー（init 用）
+# 配置先: ~/.agents/skills/cyclegen-init/agents/openai.yaml
+# 役割: CycleGen プロジェクト初期化スキルを「明示起動専用」にする（暗黙起動を抑止）。
+#       Claude Code の SKILL.md frontmatter `disable-model-invocation: true` に相当する
+#       Codex 側の等価制御。init は破壊的操作（ディレクトリ/AGENTS.md生成）を含むため
+#       暗黙起動は必ず止める（CYCLE14.17 一次確認）。
+# 効果: 利用者が `$init`（frontmatter name=init）/ `/skills` で明示指定したときのみ発火する。
+policy:
+  allow_implicit_invocation: false

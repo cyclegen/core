@@ -1,0 +1,40 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "/ABSOLUTE/PATH/TO/hooks/remind-primer.sh" },
+          { "type": "command", "command": "/ABSOLUTE/PATH/TO/hooks/remind-cycle-memory.sh" }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "mcp__.*cyclegen__cycle_complete",
+        "hooks": [
+          { "type": "command", "command": "/ABSOLUTE/PATH/TO/hooks/check-cycle-complete.sh" }
+        ]
+      },
+      {
+        "matcher": "mcp__.*cyclegen__memory_store",
+        "hooks": [
+          { "type": "command", "command": "/ABSOLUTE/PATH/TO/hooks/remind-context-judgment.sh" }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          { "type": "command", "command": "/ABSOLUTE/PATH/TO/hooks/remind-knowledge-proposal.sh" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "mcp__.*cyclegen__cycle_complete",
+        "hooks": [
+          { "type": "command", "command": "/ABSOLUTE/PATH/TO/hooks/remind-profile-update.sh" }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,104 @@
+# CycleGen Finish Template: Gold
+# 航海日誌スタイル — レザー×パーチメントの書籍世界観
+
+name: Gold
+description: レザー×パーチメント×ゴールドの航海日誌スタイル
+
+page:
+  margin_top: 3.0
+  margin_bottom: 3.0
+  margin_left: 2.8
+  margin_right: 2.8
+
+colors:
+  primary: "1a1a1a"       # 墨黒
+  secondary: "1a2332"     # ダークネイビー
+  accent: "c9a84c"        # ゴールド
+  text: "2a2a2a"          # ダーク暖灰
+
+title:
+  font: "Georgia"
+  size: 26
+  color: "c9a84c"
+  bold: true
+  alignment: left
+
+heading2:
+  font: "Georgia"
+  size: 16
+  color: "1a1a1a"
+  bold: true
+  border_bottom: true
+  border_color: "c9a84c"
+  space_before: 22
+  space_after: 8
+
+heading3:
+  font: "Georgia"
+  size: 13
+  color: "1a2332"
+  bold: true
+  space_before: 16
+  space_after: 5
+
+heading4:
+  font: "Georgia"
+  size: 11.5
+  color: "5c3d2e"
+  bold: true
+  space_before: 12
+  space_after: 3
+
+heading5:
+  font: "Georgia"
+  size: 10.5
+  color: "2c3e6b"
+  bold: false
+  italic: true
+  space_before: 8
+  space_after: 2
+
+body:
+  font: "Georgia"
+  size: 10.5
+  color: "2a2a2a"
+  line_spacing: 1.8
+  space_before: 4          # pt
+  space_after: 4
+
+list:
+  font: "Georgia"
+  size: 10.5
+  color: "2a2a2a"
+  indent: 1.0
+
+table:
+  header_bg: "1a2332"
+  header_text: "f5eedf"
+  header_font: "Georgia"
+  header_size: 10
+  body_font: "Georgia"
+  body_size: 10
+  border_color: "c8c3b8"
+
+blockquote:
+  font: "Georgia"
+  size: 10.5
+  color: "3a3a3a"
+  line_spacing: 1.8
+
+code:
+  font: "Courier New"
+  size: 9
+  color: "2a2a2a"
+  bg: "f5eedf"
+
+metadata:
+  font: "Georgia"
+  size: 10
+  color: "8b6242"
+
+footer:
+  font: "Georgia"
+  size: 8
+  color: "8b6242"

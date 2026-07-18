@@ -1,0 +1,92 @@
+# CycleGen Finish Template: Creative
+# カラフル・クリエイティブ職向けスタイル
+
+name: Creative
+description: カラフルで遊び心のあるクリエイティブ職向けスタイル
+
+page:
+  margin_top: 2.0
+  margin_bottom: 2.0
+  margin_left: 2.5
+  margin_right: 2.5
+
+colors:
+  primary: "6C3483"       # パープル
+  secondary: "2E86C1"     # ブルー
+  accent: "E74C3C"        # レッド
+  text: "2C3E50"          # ダークネイビー
+
+title:
+  font: "Georgia"
+  size: 26
+  color: "6C3483"
+  bold: true
+  alignment: left
+
+heading2:
+  font: "Georgia"
+  size: 15
+  color: "6C3483"
+  bold: true
+  border_bottom: true
+  border_color: "E74C3C"
+  space_before: 20
+  space_after: 8
+
+heading3:
+  font: "Georgia"
+  size: 12
+  color: "2E86C1"
+  bold: true
+  space_before: 14
+  space_after: 4
+
+heading4:
+  font: "Georgia"
+  size: 11
+  color: "6C3483"
+  bold: true
+  space_before: 12
+  space_after: 3
+
+heading5:
+  font: "Georgia"
+  size: 10.5
+  color: "2C3E50"
+  bold: false
+  italic: true
+  space_before: 8
+  space_after: 2
+
+body:
+  font: "Georgia"
+  size: 10.5
+  color: "2C3E50"
+  line_spacing: 1.6
+  space_before: 4          # pt
+  space_after: 4
+
+list:
+  font: "Georgia"
+  size: 10.5
+  color: "2C3E50"
+  indent: 1.0
+
+table:
+  header_bg: "6C3483"
+  header_text: "FFFFFF"
+  header_font: "Georgia"
+  header_size: 10
+  body_font: "Georgia"
+  body_size: 10
+  border_color: "D5D8DC"
+
+metadata:
+  font: "Georgia"
+  size: 10
+  color: "7F8C8D"
+
+footer:
+  font: "Georgia"
+  size: 8
+  color: "B2BABB"
