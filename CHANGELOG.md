@@ -21,4 +21,4 @@ Initial public release of **CycleGen Core** (Apache-2.0).
 - Plugin distribution for Claude Code and Codex, with a bootstrap launcher that
   resolves `uv`/`uvx` automatically.
 
-[0.1.0]: https://github.com/rashiku/cyclegen/releases/tag/v0.1.0
+[0.1.0]: https://github.com/cyclegen/core/releases/tag/v0.1.0

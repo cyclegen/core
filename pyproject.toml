@@ -19,8 +19,8 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://cyclegen.io"
-Repository = "https://github.com/rashiku/cyclegen"
-Changelog = "https://github.com/rashiku/cyclegen/blob/main/CHANGELOG.md"
+Repository = "https://github.com/cyclegen/core"
+Changelog = "https://github.com/cyclegen/core/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 docx = [
