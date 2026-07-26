@@ -31,11 +31,30 @@ cyclegen-core/
 スキルは**二重起動**: 4スキル（cycle/memory/glossary/ops）は description で**自動起動**、
 フロントドア/init は `disable-model-invocation:true` の**明示起動専用**。
 
+## 前提: uv の導入（★1行・全OS共通）
+
+CycleGen の MCP サーバーは `uvx` で起動する。**先に uv を入れておくこと。**
+
+```
+# macOS / Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows (PowerShell)
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+Python の事前導入は不要（uv が必要な版を自動で用意する）。PATH も自動で通る。
+
+> なぜ uv が前提なのか: `.mcp.json` は起動コマンドを **1つしか書けず、OS 分岐の機構が無い**
+> （公式スキーマに OS 変種が存在しない）。したがって「Windows でも動く1つのコマンド」を
+> 選ぶしかなく、`uvx` を直接指す形にした（CYCLE15.12.2 判断D-1）。
+> uv が無い場合は規律層の hook が毎ターン導入手順を案内する。
+
 ## 導入手順（Claude Code）
 ```
-# 1. 導入（開発反復は --plugin-dir、本番は自前マーケットプレイス）
-claude --plugin-dir ./plugins/cyclegen-core
-#   編集 → /reload-plugins で反復
+# 1. マーケットプレイス登録 → インストール
+/plugin marketplace add cyclegen/core
+/plugin install cyclegen-core@cyclegen
 
 # 2. プロジェクト初期化（標準ディレクトリ＋薄い層2 CLAUDE.md を生成）
 /cyclegen-core:init
@@ -43,6 +62,16 @@ claude --plugin-dir ./plugins/cyclegen-core
 # 3. 初CYCLE開始
 /cyclegen-core:cyclegen start      # 省略形 /cyclegen start が効けばそれでも可
 ```
+（開発反復時は `claude --plugin-dir ./plugins/cyclegen-core` ＋ `/reload-plugins`）
+
+## 導入手順（Codex）
+```
+# 配線コマンドが Codex 側の config.toml / hooks.json / skills をまとめて設定する
+uvx --from cyclegen cyclegen setup codex --dry-run   # 何を書くか確認
+uvx --from cyclegen cyclegen setup codex             # 実行
+```
+※ `setup codex` は CYCLE15.12.3 時点で未実装（Step2）。現状は
+`manifests/codex/README.md` の手動手順を使う。
 - 思考モード明示指定: `/cyclegen-core:cyclegen mode review`（review/analyze/decide/create… 12種）
 - 名前空間はプラグイン名 `cyclegen-core`。曖昧性が無ければプレフィックス省略可（`/cyclegen ...`）。
 
@@ -63,8 +92,13 @@ Codex への配置は `manifests/codex/README.md` 参照（共通ペイロード
 UserPromptSubmit薄いプライマー `remind-primer.sh`（CYCLE14.3）／フロントドア・init（F4実装①/CYCLE14.8）／
 Codex manifest・`.agents/skills/`標準パス確定（F4-3/CYCLE14.9）／3層フォールバック配線（Codex manifest＋AGENTS.md自然言語/CYCLE14.9）。
 
+**解決済み（配布導線）**: `.mcp.json` の command（リポ相対 → bootstrapラッパー → **`uvx` 直指定**／
+CYCLE15.3・15.12.2 判断D-1）／marketplace.json 新設と公開チャネル経由の導入実証（CYCLE15.12.1）／
+規律層 payload の wheel 同梱（`cyclegen/_payload/`・force-include／CYCLE15.12.3 判断E1=A-1）。
+
 **残**:
-- **`.mcp.json` の command がリポ相対**（`${CLAUDE_PLUGIN_ROOT}/../../cyclegen/.venv/bin/cyclegen-mcp`）= 同一リポ前提。真の配布では **pip 配布＋PATH バイナリ** へ一般化（F1 §11）。Codex側は既にPATH前提で記述済（`manifests/codex/config.toml.example`）。
+- **`cyclegen setup codex` が未実装**（CYCLE15.12.3 Step2）。Codex への配線は現状 `manifests/codex/README.md` の手動手順。
+- **Windows での規律層 hook**（`#!/bin/bash` 6本・`jq` 依存）は未検証。CYCLE15.11.5 の実測で分岐（Git Bash/jq があれば無改修／無ければ `shell` 指定 or Python化＝MS2候補）。**MCP 起動側は D-1 で解決済み**（この2つは別の問題）。
 - **本体リファインとの同期方式**（軸A）= (c)ハイブリッド確定（MCPは直結で自動最新／Skill・hook本文はスナップショット＋re-sync）。**本体が別リポ化した時点で再評価**（現在は同一リポで乖離リスク小）。
 - **`permissions.allow`**: 利用者固有のため配布除外（F1 H7）。
 - **実発火検証**（スラッシュ起動・`disable-model-invocation`・init生成・Codex hooks.jsonネスト）はJAY環境の対話起動（`claude --plugin-dir` / Codex `/hooks`）に委譲。

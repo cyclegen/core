@@ -1,22 +1,41 @@
 # CycleGen — Codex CLI 用 MCP 設定（~/.codex/config.toml へ追記）
 #
-# Claude Code の .mcp.json（JSON・mcpServers・${CLAUDE_PLUGIN_ROOT}相対）の読み替え版。
-# Codex には ${CLAUDE_PLUGIN_ROOT} 相当の変数展開が無いため、command は
-#   (推奨) PATH 上のバイナリ名 "cyclegen-mcp"      ← pip 配布後はこれだけで動く
-#   (暫定) 絶対パス "/abs/path/to/.venv/bin/cyclegen-mcp"
-# のいずれかで指定する。
+# Claude Code の .mcp.json（JSON・mcpServers）の読み替え版。
+# Codex には ${CLAUDE_PLUGIN_ROOT} 相当の変数展開が無いため、command は自前で決める。
 #
-# 出典: developers.openai.com/codex/mcp ／ docs/design/CYCLE14.9_FR034-F4-3_Codex調査とmanifest.md §1.4/§2.1
+# ★推奨 = uvx 直指定（CYCLE15.12.2 判断D-1 / §4-2 C-c）。理由:
+#   1. setup の実行方法に依存しない。`uvx cyclegen setup codex` で配線した場合、
+#      `cyclegen-mcp` はエフェメラル環境の中にしか存在せず setup 完了後に消える。
+#      PATH 前提や絶対パスを書くと「壊れた設定」を書き込んでしまう。
+#   2. Windows でも uvx は同じコマンド名で動く（.mcp.json / config.toml には
+#      OS 分岐機構が無いため、全OSで同一の1本にする必要がある）。
+#   3. Claude Code 側 .mcp.json の既定と一致する（単一の起動経路）。
+#
+# 前提: uv が導入されていること。
+#   macOS/Linux : curl -LsSf https://astral.sh/uv/install.sh | sh
+#   Windows     : powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+#
+# 出典: developers.openai.com/codex/mcp
+#       docs/design/CYCLE14.9_FR034-F4-3_Codex調査とmanifest.md §1.4/§2.1
+#       docs/design/CYCLE15.12.2_Codex配線導線＋wheel同梱＋Windows起動の設計.md §4-2/§5-2
 
-# --- 推奨: pip 配布で PATH に乗せた場合 ---
+# --- 推奨: uvx 直指定（実行方法・OSに依存しない） ---
 [mcp_servers.cyclegen]
-command = "cyclegen-mcp"
-args = []
+command = "uvx"
+args = ["--from", "cyclegen[semantic,docx]", "cyclegen-mcp"]
 # env を渡す場合は下のサブテーブルで（不要なら省略可）
 # [mcp_servers.cyclegen.env]
 # CYCLEGEN_HOME = "~/.cyclegen"
 
-# --- 暫定: 同一リポの venv を直接指す場合（PATH 未整備時） ---
+# ※ extras の semantic / docx は省略しないこと。省くと memory_search が縮退し
+#   finish 系ツールも出ない（CYCLE15.3 実発火で確認）。
+#
+# ※ 版ピン: 上の書き方は「常に最新版を引く」。特定版で検証したいときは extras の後ろに
+#   バージョンを付ける（例: "cyclegen[semantic,docx]==0.1.1"）。
+#   Phase4 の再検証では版を明示すること（CYCLE15.12 §11-5）。
+
+# --- 代替: pip / uv tool で PATH 上に導入済みの場合 ---
+# （`cyclegen setup codex --use-path` が書く形。cyclegen-mcp が恒久的に PATH にある人向け）
 # [mcp_servers.cyclegen]
-# command = "/ABSOLUTE/PATH/TO/_CycleGen_Ent/cyclegen/.venv/bin/cyclegen-mcp"
+# command = "cyclegen-mcp"
 # args = []

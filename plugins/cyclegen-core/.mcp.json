@@ -2,8 +2,8 @@
   "mcpServers": {
     "cyclegen": {
       "type": "stdio",
-      "command": "${CLAUDE_PLUGIN_ROOT}/bin/cyclegen-mcp-launch.sh",
-      "args": [],
+      "command": "uvx",
+      "args": ["--from", "cyclegen[semantic,docx]", "cyclegen-mcp"],
       "env": {}
     }
   }

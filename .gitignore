@@ -7,3 +7,6 @@ __pycache__/
 dist/
 build/
 .vercel
+# ライブラリとして配布するパッケージなので lock は配らない
+# （利用者側の依存解決を縛らないため）。uv build / uv run の副産物。
+uv.lock

@@ -1,7 +1,14 @@
 #!/bin/bash
 # CycleGen MCP bootstrap launcher (POSIX / macOS / Linux)
 #
-# .mcp.json の command から呼ばれ、uvx/uv を解決して cyclegen-mcp を起動する。
+# ★CYCLE15.12.2 判断D-1 以降、これは .mcp.json の既定の起動経路では *ない*。
+#   既定は `.mcp.json` が `uvx` を直接起動する（Windowsを含む全OS・全サーフェスで同一の
+#   1本の経路にするため。.mcp.json には OS 分岐機構が無く「Windowsでも動く1つのコマンド」
+#   を選ぶしかない ＝ CYCLE15.12.2 §5-2）。
+#   本スクリプトは「uvの自動導入まで面倒を見る」経路として *残してある*（判断E2の緩和策）。
+#   POSIX環境で導入摩擦をゼロにしたい場合は、.mcp.json の command をこのパスに戻せばよい。
+#
+# 呼ばれた場合の動作: uvx/uv を解決して cyclegen-mcp を起動する。
 # 解決順（フォールバック階段・CYCLE15.2 §3.2）:
 #   1. uvx が PATH にあれば         → uvx --from <PKG> cyclegen-mcp
 #   2. uv があれば                  → uv tool run --from <PKG> cyclegen-mcp

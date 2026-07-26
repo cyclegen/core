@@ -30,4 +30,20 @@ PRIMER=$(cat <<'EOF'
 EOF
 )
 
+# --- 緩和策③（CYCLE15.12.2 判断E2） ---
+# .mcp.json が uvx を直接起動する（判断D-1）ため、uv が無いと MCP サーバーが起動せず
+# 記憶ツール（memory_search 等）が一切出てこない。この状態は利用者から見えにくく、
+# 「CycleGenが壊れている」としか映らないので、原因と対処を規律層から明示する。
+# 規律層のhookはOS分岐できる（CC: shell / Codex: command_windows）が、MCPプロセス起動は
+# 分岐できない（.mcp.json に OS 変種が無い）＝ここが案内を出せる唯一の層。
+export PATH="$HOME/.local/bin:$PATH"
+if ! command -v uvx >/dev/null 2>&1 && ! command -v uv >/dev/null 2>&1; then
+    PRIMER="${PRIMER}
+■⚠ uv が見つかりません — CycleGenの記憶ツールは起動できません（他の機能は動きます）。
+  導入 macOS/Linux : curl -LsSf https://astral.sh/uv/install.sh | sh
+  導入 Windows     : powershell -c \"irm https://astral.sh/uv/install.ps1 | iex\"
+  導入後、AIクライアントを再起動すると記憶ツールが有効になります。
+  ※この案内は利用者にそのまま伝えること。"
+fi
+
 jq -n --arg ctx "$PRIMER" '{hookSpecificOutput:{hookEventName:"UserPromptSubmit",additionalContext:$ctx}}'

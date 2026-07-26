@@ -39,6 +39,20 @@ dev = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/cyclegen"]
 
+# 規律層（プラグイン payload）を wheel に同梱する（CYCLE15.12.2 判断E1 = A-1）。
+# `cyclegen setup codex` が clone なしで hooks/skills/agents/manifests を配置するために必要。
+#
+# ★このテーブルは母艦（_CycleGen_Ent）と公開Core（cyclegen/core）で **左辺のパスだけが異なる**。
+#   母艦    : "../plugins/cyclegen-core"（pyproject が cyclegen/ 配下にあるため 1つ上）
+#   公開Core: "plugins/cyclegen-core"   （pyproject がリポジトリルートにあるため）
+#   CYCLE15.12.1 判断D2（母艦=開発正本・公開Core=配布先の一方向同期）により pyproject は
+#   公開Core固有資産＝同期対象外。この1行差は事故ではなく仕様である。
+#
+# ★src は必ず `packages`（src/cyclegen）の外に置くこと。内側を指すと同一パスへの二重追加で
+#   ビルドが落ちる（CYCLE15.3 F5バグ）。
+[tool.hatch.build.targets.wheel.force-include]
+"plugins/cyclegen-core" = "cyclegen/_payload"
+
 [project.scripts]
 cyclegen-mcp = "cyclegen.mcp.server:main"
 cyclegen-mcp-sse = "cyclegen.mcp.server:main_sse"
