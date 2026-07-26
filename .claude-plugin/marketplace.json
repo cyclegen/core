@@ -1,0 +1,25 @@
+{
+  "name": "cyclegen",
+  "owner": {
+    "name": "rashiku Corp.",
+    "url": "https://github.com/cyclegen"
+  },
+  "description": "CycleGen — Knowledge Management for the AI Era. 1時間1サイクルの人間-AI協働プロトコルと、3次元評価のスキル・記憶ストアを配布する。",
+  "plugins": [
+    {
+      "name": "cyclegen-core",
+      "source": "./plugins/cyclegen-core",
+      "description": "CycleGen Core — 1時間1サイクルの人間-AI協働プロトコル（PDCA承認ゲート・スキル記憶ストア・プロンプトサジェスト）をプラグインとして配布。CLAUDE.md手編集ゼロでサイクルがターンをまたいで回る。",
+      "category": "workflow",
+      "license": "Apache-2.0",
+      "repository": "https://github.com/cyclegen/core",
+      "keywords": [
+        "cyclegen",
+        "deep-out",
+        "in-context-adaptation",
+        "knowledge-management",
+        "pdca"
+      ]
+    }
+  ]
+}

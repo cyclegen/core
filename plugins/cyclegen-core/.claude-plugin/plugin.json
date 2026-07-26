@@ -1,6 +1,6 @@
 {
   "name": "cyclegen-core",
-  "version": "0.1.0-alpha",
+  "version": "0.1.0",
   "description": "CycleGen Core — 1時間1サイクルの人間-AI協働プロトコル（PDCA承認ゲート・スキル記憶ストア・プロンプトサジェスト）をプラグインとして配布。CLAUDE.md手編集ゼロでサイクルがターンをまたいで回る。",
   "author": {
     "name": "Rashiku Corp / JAY"

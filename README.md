@@ -38,9 +38,21 @@ cyclegen-mcp
 - `semantic` — embeddings backend for memory search (recommended; first run downloads a small model).
 - `docx` — enables the `document_finish` / `list_finish_templates` tools.
 
-### Use as a plugin
+### Use as a plugin (recommended)
 
-CycleGen ships a plugin for Claude Code and Codex that wires the MCP server and the cycle discipline (hooks) automatically. See the guide at **https://cyclegen.io**.
+CycleGen ships a plugin that wires the MCP server **and** the cycle discipline (hooks, skills, approval gate) automatically — no manual MCP configuration, no cloning this repository.
+
+In Claude Code, run:
+
+```
+/plugin marketplace add cyclegen/core
+/plugin install cyclegen-core@cyclegen
+```
+
+Then restart the session so the MCP server is picked up. `uv` is installed automatically on first launch if it isn't already present.
+
+- Plugin details and what gets wired: [plugins/cyclegen-core/README.md](./plugins/cyclegen-core/README.md)
+- Codex (manual wiring for now): [plugins/cyclegen-core/manifests/codex/README.md](./plugins/cyclegen-core/manifests/codex/README.md)
 
 ## MCP client configuration (manual)
 
@@ -58,7 +70,9 @@ CycleGen ships a plugin for Claude Code and Codex that wires the MCP server and 
 
 ## Documentation
 
-- Website & guides: **https://cyclegen.io**
+- Plugin (Claude Code / Codex): [plugins/cyclegen-core/README.md](./plugins/cyclegen-core/README.md)
+- Changelog: [CHANGELOG.md](./CHANGELOG.md)
+- Website & guides: **https://cyclegen.io** *(coming soon)*
 
 ## License
 
