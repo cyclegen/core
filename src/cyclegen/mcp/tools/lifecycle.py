@@ -110,16 +110,21 @@ async def memory_status() -> str:
         lines.append(f"  L{layer}: {count}件")
 
     if _server._config and _server._config.org_server_enabled:
-        from cyclegen.org.client import OrgClient
-
-        org = OrgClient(_server._config)
         try:
-            org_status = org.status()
-            lines.append(
-                f"Org Layer: {org_status.get('total_memories', '?')}件"
-            )
-        except Exception:
-            lines.append("Org Layer: 接続不可")
+            from cyclegen.org.client import OrgClient
+        except ImportError:
+            # 公開Core（Enterprise層未同梱ビルド）ではグレースフル劣化
+            # （CYCLE15.12 F-1修正: org物理除去ビルドでのクラッシュ回避）
+            lines.append("Org Layer: 無効（Enterprise層 未同梱ビルド）")
+        else:
+            org = OrgClient(_server._config)
+            try:
+                org_status = org.status()
+                lines.append(
+                    f"Org Layer: {org_status.get('total_memories', '?')}件"
+                )
+            except Exception:
+                lines.append("Org Layer: 接続不可")
     else:
         lines.append("Org Layer: 無効（org_server.enabled=false）")
 

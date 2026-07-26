@@ -30,8 +30,8 @@ class MemorySourceResolver:
         PostgreSQLバックエンドはSyncPostgreSQLPersistence（psycopg2）を使用。
         """
         if config.memory_sources:
-            return self._resolve_new(config)
-        return self._resolve_legacy(config)
+            return self._ensure_non_empty(self._resolve_new(config), config)
+        return self._ensure_non_empty(self._resolve_legacy(config), config)
 
     async def async_resolve(self, config: CycleGenConfig) -> list[MemorySource]:
         """CycleGenConfigからMemorySourceリストを生成する（非同期版）。
@@ -40,8 +40,28 @@ class MemorySourceResolver:
         local/cloudバックエンドは同期版と同じ。
         """
         if config.memory_sources:
-            return await self._async_resolve_new(config)
-        return await self._async_resolve_legacy(config)
+            return self._ensure_non_empty(await self._async_resolve_new(config), config)
+        return self._ensure_non_empty(await self._async_resolve_legacy(config), config)
+
+    def _ensure_non_empty(
+        self, sources: list[MemorySource], config: CycleGenConfig,
+    ) -> list[MemorySource]:
+        """解決結果が空なら既定のローカルPersonalソースを補う。
+
+        cloudソースだけを列挙した設定が、Enterprise層未同梱ビルド（公開Core）で
+        全てスキップされると空リストになる。呼び出し側（mcp/server.py）は
+        `sources[0]` を primary として使うため、空のままでは IndexError で落ちる
+        ＝ グレースフル劣化になっていない。ここで既定ローカルへ落とし込む。
+        （CYCLE15.12 F-1修正）
+        """
+        if sources:
+            return sources
+
+        logger.warning(
+            "解決可能な記憶ソースが0件でした。既定のローカルPersonalソースで継続します。",
+        )
+        src_cfg = MemorySourceConfig(name="personal", backend="local")
+        return [self._create_local_source(src_cfg, config, None)]
 
     def _resolve_new(self, config: CycleGenConfig) -> list[MemorySource]:
         """新方式: memory_sourcesセクションからMemorySourceリストを生成。"""
@@ -59,6 +79,10 @@ class MemorySourceResolver:
                 source = self._create_cloud_source(src_cfg, config, owner_id)
             else:
                 logger.warning("不明なbackend種別: %s（スキップ）", src_cfg.backend)
+                continue
+
+            if source is None:
+                # cloudソースがグレースフル劣化（Enterprise層未同梱）でスキップ
                 continue
 
             sources.append(source)
@@ -101,7 +125,9 @@ class MemorySourceResolver:
                 url=config.org_server_url,
                 api_key=config.org_api_key,
             )
-            sources.append(self._create_cloud_source(src_cfg, config, None))
+            org_source = self._create_cloud_source(src_cfg, config, None)
+            if org_source is not None:
+                sources.append(org_source)
 
         logger.info("レガシー設定フォールバック: %d ソース解決", len(sources))
         return sources
@@ -149,9 +175,23 @@ class MemorySourceResolver:
 
     def _create_cloud_source(
         self, src_cfg: MemorySourceConfig, config: CycleGenConfig, owner_id: str | None,
-    ) -> MemorySource:
-        """cloudバックエンド: OrgClient（REST API経由）"""
-        from cyclegen.org.client import OrgClient
+    ) -> MemorySource | None:
+        """cloudバックエンド: OrgClient（REST API経由）
+
+        公開Core（Enterprise層 cyclegen.org を含まないビルド）では
+        ImportError を捕捉して None を返し、Personal-only へグレースフル劣化する。
+        呼び出し側は None のソースを sources に追加せずスキップする。
+        （CYCLE15.12 F-1修正: org物理除去ビルドでの memory_search クラッシュ回避）
+        """
+        try:
+            from cyclegen.org.client import OrgClient
+        except ImportError:
+            logger.warning(
+                "Enterprise層（cyclegen.org）が未同梱のビルドです。"
+                "cloudソース '%s' をスキップし、Personal-only で継続します。",
+                src_cfg.name,
+            )
+            return None
 
         # 新設定のurl/api_keyを優先、なければ旧設定にフォールバック
         url = self._expand_env(src_cfg.url) if src_cfg.url else config.org_server_url
@@ -191,6 +231,10 @@ class MemorySourceResolver:
                 logger.warning("不明なbackend種別: %s（スキップ）", src_cfg.backend)
                 continue
 
+            if source is None:
+                # cloudソースがグレースフル劣化（Enterprise層未同梱）でスキップ
+                continue
+
             sources.append(source)
             logger.info(
                 "MemorySource解決(async): %s (backend=%s, is_local=%s)",
@@ -225,7 +269,9 @@ class MemorySourceResolver:
                 url=config.org_server_url,
                 api_key=config.org_api_key,
             )
-            sources.append(self._create_cloud_source(src_cfg, config, None))
+            org_source = self._create_cloud_source(src_cfg, config, None)
+            if org_source is not None:
+                sources.append(org_source)
 
         logger.info("レガシー設定フォールバック(async): %d ソース解決", len(sources))
         return sources

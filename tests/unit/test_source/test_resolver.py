@@ -162,7 +162,22 @@ class TestResolveNew:
         assert sources[1].name == "org"
 
     def test_unknown_backend_skipped(self):
-        """不明なbackendはスキップ"""
+        """不明なbackendはスキップされる（解決層では0件）"""
+        config = CycleGenConfig(
+            memory_sources=[
+                MemorySourceConfig(name="weird", backend="unknown"),
+            ],
+        )
+        resolver = MemorySourceResolver()
+        sources = resolver._resolve_new(config)
+        assert len(sources) == 0
+
+    def test_unknown_backend_only_falls_back_to_local(self):
+        """CYCLE15.12: 解決結果が0件でも resolve() は既定ローカルで継続する。
+
+        呼び出し側（mcp/server.py）が `sources[0]` を使うため、
+        公開APIとしては空リストを返さない不変条件を持つ。
+        """
         config = CycleGenConfig(
             memory_sources=[
                 MemorySourceConfig(name="weird", backend="unknown"),
@@ -170,7 +185,9 @@ class TestResolveNew:
         )
         resolver = MemorySourceResolver()
         sources = resolver.resolve(config)
-        assert len(sources) == 0
+        assert len(sources) == 1
+        assert sources[0].name == "personal"
+        assert sources[0].is_local is True
 
     def test_owner_id_env_expansion(self):
         """owner_idの環境変数展開"""
@@ -297,6 +314,133 @@ class TestAsyncResolve:
 
         assert len(sources) == 1
         mock_pg.assert_called_once()
+
+
+class TestCloudSourceGracefulDegradation:
+    """F-1修正（CYCLE15.12）: Enterprise層 cyclegen.org 未同梱ビルドでの
+    グレースフル劣化。org物理除去ビルド（公開Core）で org_server_enabled=True
+    でも memory_search 等がクラッシュせず Personal-only へ劣化することを検証する。
+    """
+
+    @staticmethod
+    def _org_absent():
+        """cyclegen.org のimportを ImportError にするパッチ。
+
+        sys.modules に None を入れると当該モジュールの import 時に
+        ImportError（≈ 公開CoreでのModuleNotFoundError）が送出される。
+        """
+        return patch.dict(
+            "sys.modules",
+            {"cyclegen.org": None, "cyclegen.org.client": None},
+        )
+
+    def test_create_cloud_source_returns_none_when_org_absent(self):
+        """org未同梱なら _create_cloud_source は例外でなく None を返す"""
+        config = CycleGenConfig(
+            org_server_enabled=True,
+            org_server_url="https://org.example.com",
+            org_api_key="key123",
+        )
+        resolver = MemorySourceResolver()
+        src_cfg = MemorySourceConfig(name="org", backend="cloud", url="https://org.example.com")
+
+        with self._org_absent():
+            result = resolver._create_cloud_source(src_cfg, config, None)
+
+        assert result is None
+
+    def test_resolve_legacy_degrades_to_personal_only(self):
+        """旧方式: org_server_enabled=True でも org未同梱なら Personal-only（1ソース）"""
+        config = CycleGenConfig(
+            org_server_enabled=True,
+            org_server_url="https://org.example.com",
+            org_api_key="key123",
+        )
+        resolver = MemorySourceResolver()
+
+        with self._org_absent(), \
+             patch("cyclegen.source.resolver.MemorySourceResolver._create_local_source") as mock_local:
+            mock_local.return_value = MemorySource(name="personal", is_local=True)
+            sources = resolver._resolve_legacy(config)
+
+        assert len(sources) == 1
+        assert sources[0].name == "personal"
+
+    def test_resolve_new_skips_cloud_when_org_absent(self):
+        """新方式: cloudソースは org未同梱ならスキップし、localは残る"""
+        config = CycleGenConfig(
+            memory_sources=[
+                MemorySourceConfig(name="personal", backend="local"),
+                MemorySourceConfig(name="org", backend="cloud", url="https://org.example.com"),
+            ],
+        )
+        resolver = MemorySourceResolver()
+
+        with self._org_absent(), \
+             patch("cyclegen.source.resolver.MemorySourceResolver._create_local_source") as mock_local:
+            mock_local.return_value = MemorySource(name="personal", is_local=True)
+            sources = resolver.resolve(config)
+
+        assert len(sources) == 1
+        assert sources[0].name == "personal"
+
+    @pytest.mark.asyncio
+    async def test_async_resolve_legacy_degrades_to_personal_only(self):
+        """非同期・旧方式: org未同梱なら Personal-only（1ソース）"""
+        config = CycleGenConfig(
+            org_server_enabled=True,
+            org_server_url="https://org.example.com",
+            org_api_key="key123",
+        )
+        resolver = MemorySourceResolver()
+
+        with self._org_absent(), \
+             patch("cyclegen.source.resolver.MemorySourceResolver._create_local_source") as mock_local:
+            mock_local.return_value = MemorySource(name="personal", is_local=True)
+            sources = await resolver._async_resolve_legacy(config)
+
+        assert len(sources) == 1
+        assert sources[0].name == "personal"
+
+    def test_cloud_only_config_falls_back_to_local_personal(self):
+        """cloudのみ構成でも空リストにせず既定ローカルPersonalへ落とす。
+
+        空リストのまま返すと mcp/server.py の `sources[0]` が IndexError になり
+        グレースフル劣化にならない（ModuleNotFoundErrorが別の例外に化けるだけ）。
+        """
+        config = CycleGenConfig(
+            memory_sources=[
+                MemorySourceConfig(name="org", backend="cloud", url="https://org.example.com"),
+            ],
+        )
+        resolver = MemorySourceResolver()
+
+        with self._org_absent(), \
+             patch("cyclegen.source.resolver.MemorySourceResolver._create_local_source") as mock_local:
+            mock_local.return_value = MemorySource(name="personal", is_local=True)
+            sources = resolver.resolve(config)
+
+        assert len(sources) == 1
+        assert sources[0].name == "personal"
+        assert sources[0].is_local is True
+
+    @pytest.mark.asyncio
+    async def test_async_cloud_only_config_falls_back_to_local_personal(self):
+        """非同期版でも cloudのみ構成は既定ローカルPersonalへ落ちる"""
+        config = CycleGenConfig(
+            memory_sources=[
+                MemorySourceConfig(name="org", backend="cloud", url="https://org.example.com"),
+            ],
+        )
+        resolver = MemorySourceResolver()
+
+        with self._org_absent(), \
+             patch("cyclegen.source.resolver.MemorySourceResolver._create_local_source") as mock_local:
+            mock_local.return_value = MemorySource(name="personal", is_local=True)
+            sources = await resolver.async_resolve(config)
+
+        assert len(sources) == 1
+        assert sources[0].name == "personal"
 
 
 class TestMemorySource:
