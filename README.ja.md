@@ -21,7 +21,21 @@ CycleGen Core は、意味検索・自己ランキングするスキル・記憶
 
 ## 導入
 
-### プラグインとして使う（推奨）
+### 前提: uv の導入（1行・全OS共通）
+
+CycleGen の MCP サーバーは `uvx` で起動します。**先に uv を入れてください。**
+
+```bash
+# macOS / Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows (PowerShell)
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+Python の事前導入は不要です（uv が必要な版を自動で用意し、PATH も通します）。
+
+### Claude Code — プラグインとして使う（推奨）
 
 CycleGen は、MCPサーバーと**CYCLEの規律（hook・スキル・承認ゲート）**をまとめて配線するプラグインを提供しています。MCPの手動設定も、このリポジトリのcloneも不要です。
 
@@ -32,10 +46,27 @@ Claude Code で以下を実行します:
 /plugin install cyclegen-core@cyclegen
 ```
 
-そのあとセッションを再起動してください（MCPサーバーの読み込みに必要）。`uv` が未導入の場合は初回起動時に自動で導入されます。
+そのあとセッションを再起動してください（MCPサーバーの読み込みに必要）。
+
+### Codex — 同梱のコマンドで配線する
+
+Codex にはプラグイン機構が無いため、パッケージに同梱した配線コマンドを使います。こちらも clone は不要です。
+
+```bash
+# 何が書き換わるかを先に確認する
+uvx --from "cyclegen[semantic,docx]" cyclegen setup codex --dry-run
+
+# 配線する
+uvx --from "cyclegen[semantic,docx]" cyclegen setup codex
+```
+
+`~/.codex/config.toml`（MCP）・`~/.codex/hooks.json`（規律層のhook）・`~/.agents/skills/`（スキル6本）に配線します。実行後は Codex を再起動してください。
+
+- 既存の設定は書き換えず、バックアップ（`*.cyclegen-bak`）を取ります。2回実行しても壊れません。
+- 撤去は `cyclegen setup codex --remove`。**蓄積した記憶のデータは削除しません。**
 
 - プラグインの詳細と配線される中身: [plugins/cyclegen-core/README.md](./plugins/cyclegen-core/README.md)
-- Codex（現状は手動配線）: [plugins/cyclegen-core/manifests/codex/README.md](./plugins/cyclegen-core/manifests/codex/README.md)
+- Codex の配線を手で行う場合: [plugins/cyclegen-core/manifests/codex/README.md](./plugins/cyclegen-core/manifests/codex/README.md)
 
 ### MCPサーバー単体で使う
 

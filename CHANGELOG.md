@@ -5,6 +5,26 @@ All notable changes to CycleGen Core are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `cyclegen setup codex` — wires Codex (`~/.codex/config.toml`, `~/.codex/hooks.json`,
+  `~/.agents/skills/`) straight from the installed package, so Codex users no longer
+  need to clone this repository or edit absolute paths. Supports `--dry-run`,
+  `--force`, `--remove` and `--use-path`. Existing settings are preserved
+  (backups are written, running it twice is a no-op, other tools' hooks are left alone).
+- The plugin payload (hooks, skills, manifests) is now shipped inside the wheel at
+  `cyclegen/_payload/` and copied to `~/.cyclegen/plugin/` on setup.
+
+### Changed
+- The MCP server is launched via `uvx` on every surface, so **uv is now a prerequisite**
+  rather than something the launcher installs on demand. Both READMEs document the
+  one-line install for macOS/Linux and Windows.
+
+### Fixed
+- Graceful degradation when the Enterprise layer is absent (`cyclegen.org` import no
+  longer aborts `memory_search` / `memory_status`).
+
 ## [0.1.0] - 2026-07-18
 
 Initial public release of **CycleGen Core** (Apache-2.0).

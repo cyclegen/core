@@ -22,7 +22,41 @@ Codex CLI は Claude Code のプラグインバンドル（`--plugin-dir`）を�
 > 自動起動4スキルと同じ `~/.agents/skills/` にSKILL.md本文を**無改変コピー**し、Codex固有の「明示専用」制御だけを **サイドカー `agents/openai.yaml`（`policy.allow_implicit_invocation: false`）** で付与する。
 > ＝共通ペイロード（SKILL.md本文＝CC正本）＋ツール固有配線（サイドカー）の分離。CCの `disable-model-invocation:true` に相当。
 
-## 設置手順
+## 既定の導線: `cyclegen setup codex`（CYCLE15.12.4）
+
+**このREADMEの手順を手で追う必要は無い。** 配線は PyPI パッケージに同梱したコマンドで行う
+（＝既に生きている配布チャネルの再利用・15.12.2 論点B）。clone も絶対パスの書き換えも要らない。
+
+```bash
+# 何が書き換わるかを先に見る
+uvx --from "cyclegen[semantic,docx]" cyclegen setup codex --dry-run
+
+# 配線する
+uvx --from "cyclegen[semantic,docx]" cyclegen setup codex
+
+# 撤去する（記憶ストアのデータは消さない）
+uvx --from "cyclegen[semantic,docx]" cyclegen setup codex --remove
+```
+
+配線される先は下の「配置早見表」のとおり。設計上の要点:
+
+| 事項 | 挙動 | 理由 |
+|------|------|------|
+| ペイロードの配置 | `~/.cyclegen/plugin/` へ**コピー**する | インストール済みパッケージ内の payload は **uvx キャッシュ配下**に解決される（15.12.3 F15 実測）。設定から直接指すと `uv cache clean` で配線が壊れる |
+| 配置パス | 版数を**含めない**（フラット） | `config.toml` / `hooks.json` は絶対パスを保持するため、版数を含めると更新で配線が無効化される。Claude Code 側は逆に版数を含むのが正しい |
+| MCP の `command` | `uvx` 直指定 | `uvx cyclegen setup codex` で配線した場合、`cyclegen-mcp` は setup 完了後に消える。PATH 前提を書くと**壊れた設定を書き込む**（§4-2）。恒久導入済みなら `--use-path` |
+| 既存設定 | 全面書き換えしない・バックアップ（`*.cyclegen-bak`）・2回実行しても壊れない | `tomllib` は読み取り専用で、書き戻すと利用者のコメントが壊れるため、テキストブロックの追記方式 |
+| 他者の hook | 触らない | 自分のエントリだけをスクリプト名で識別して入れ替える（旧来の手動配線も掃除するので**二重発火しない**） |
+
+> `cyclegen setup claude` は**無い**。Claude Code はプラグイン機構が正規の導線であり、
+> 二重の導線は「どちらが正か」を利用者に伝えられなくするため（15.12.2 判断E4）。
+
+---
+
+## 手で配置する場合（フォールバック）
+
+以下は上記コマンドが行う内容の内訳であり、手作業で追う必要は通常無い。
+
 1. **4スキルをコピー**: CC版 `plugins/cyclegen-core/skills/cyclegen-{cycle,memory,glossary,ops}/` を `~/.agents/skills/`（または リポジトリ直下 `.agents/skills/`）へコピー。本文は無改変。
    - ⚠ ここに**複製を同梱しない**（single source 維持・乖離防止）。正本は常に CC版 skills。
 2. **MCP**: `config.toml.example` の `[mcp_servers.cyclegen]` を `~/.codex/config.toml` へ追記。`command` は pip 配布後は `"cyclegen-mcp"`、未整備時は venv バイナリの**絶対パス**。

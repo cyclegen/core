@@ -54,6 +54,9 @@ packages = ["src/cyclegen"]
 "plugins/cyclegen-core" = "cyclegen/_payload"
 
 [project.scripts]
+# `cyclegen setup codex` の入口（CYCLE15.12.4）。Codex には拡張機構が無いため、
+# 既に届いている配布チャネル（PyPI / uvx）から配線する。
+cyclegen = "cyclegen.cli.main:main"
 cyclegen-mcp = "cyclegen.mcp.server:main"
 cyclegen-mcp-sse = "cyclegen.mcp.server:main_sse"
 cyclegen-import = "cyclegen.cli.bulk_import:main"

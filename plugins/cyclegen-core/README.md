@@ -67,11 +67,13 @@ Python の事前導入は不要（uv が必要な版を自動で用意する）�
 ## 導入手順（Codex）
 ```
 # 配線コマンドが Codex 側の config.toml / hooks.json / skills をまとめて設定する
-uvx --from cyclegen cyclegen setup codex --dry-run   # 何を書くか確認
-uvx --from cyclegen cyclegen setup codex             # 実行
+uvx --from "cyclegen[semantic,docx]" cyclegen setup codex --dry-run   # 何を書くか確認
+uvx --from "cyclegen[semantic,docx]" cyclegen setup codex             # 実行
+uvx --from "cyclegen[semantic,docx]" cyclegen setup codex --remove    # 撤去（記憶データは残る）
 ```
-※ `setup codex` は CYCLE15.12.3 時点で未実装（Step2）。現状は
-`manifests/codex/README.md` の手動手順を使う。
+実行後は Codex を再起動する。既存の `config.toml` / `hooks.json` は全面書き換えせず、
+バックアップ（`*.cyclegen-bak`）を取り、2回実行しても壊れない。
+配線の中身と設計の要点は `manifests/codex/README.md`。
 - 思考モード明示指定: `/cyclegen-core:cyclegen mode review`（review/analyze/decide/create… 12種）
 - 名前空間はプラグイン名 `cyclegen-core`。曖昧性が無ければプレフィックス省略可（`/cyclegen ...`）。
 
@@ -94,10 +96,10 @@ Codex manifest・`.agents/skills/`標準パス確定（F4-3/CYCLE14.9）／3層�
 
 **解決済み（配布導線）**: `.mcp.json` の command（リポ相対 → bootstrapラッパー → **`uvx` 直指定**／
 CYCLE15.3・15.12.2 判断D-1）／marketplace.json 新設と公開チャネル経由の導入実証（CYCLE15.12.1）／
-規律層 payload の wheel 同梱（`cyclegen/_payload/`・force-include／CYCLE15.12.3 判断E1=A-1）。
+規律層 payload の wheel 同梱（`cyclegen/_payload/`・force-include／CYCLE15.12.3 判断E1=A-1）／
+**Codex の入手導線 `cyclegen setup codex`（M-0b・CYCLE15.12.4 実装・隔離環境で通し受入32項目PASS）**。
 
 **残**:
-- **`cyclegen setup codex` が未実装**（CYCLE15.12.3 Step2）。Codex への配線は現状 `manifests/codex/README.md` の手動手順。
 - **Windows での規律層 hook**（`#!/bin/bash` 6本・`jq` 依存）は未検証。CYCLE15.11.5 の実測で分岐（Git Bash/jq があれば無改修／無ければ `shell` 指定 or Python化＝MS2候補）。**MCP 起動側は D-1 で解決済み**（この2つは別の問題）。
 - **本体リファインとの同期方式**（軸A）= (c)ハイブリッド確定（MCPは直結で自動最新／Skill・hook本文はスナップショット＋re-sync）。**本体が別リポ化した時点で再評価**（現在は同一リポで乖離リスク小）。
 - **`permissions.allow`**: 利用者固有のため配布除外（F1 H7）。

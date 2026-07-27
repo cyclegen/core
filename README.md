@@ -38,7 +38,21 @@ cyclegen-mcp
 - `semantic` — embeddings backend for memory search (recommended; first run downloads a small model).
 - `docx` — enables the `document_finish` / `list_finish_templates` tools.
 
-### Use as a plugin (recommended)
+### Prerequisite: install uv (one line, every OS)
+
+The MCP server is launched through `uvx`, so **install uv first**:
+
+```bash
+# macOS / Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows (PowerShell)
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+You do not need to install Python yourself — uv provides the right version and puts it on your PATH.
+
+### Claude Code — use as a plugin (recommended)
 
 CycleGen ships a plugin that wires the MCP server **and** the cycle discipline (hooks, skills, approval gate) automatically — no manual MCP configuration, no cloning this repository.
 
@@ -49,10 +63,27 @@ In Claude Code, run:
 /plugin install cyclegen-core@cyclegen
 ```
 
-Then restart the session so the MCP server is picked up. `uv` is installed automatically on first launch if it isn't already present.
+Then restart the session so the MCP server is picked up.
+
+### Codex — wire it with the bundled command
+
+Codex has no plugin mechanism, so the package ships a setup command instead. No cloning here either.
+
+```bash
+# See what would be written first
+uvx --from "cyclegen[semantic,docx]" cyclegen setup codex --dry-run
+
+# Wire it
+uvx --from "cyclegen[semantic,docx]" cyclegen setup codex
+```
+
+This writes `~/.codex/config.toml` (MCP), `~/.codex/hooks.json` (the discipline hooks) and `~/.agents/skills/` (six skills). Restart Codex afterwards.
+
+- Existing settings are never rewritten in place; backups (`*.cyclegen-bak`) are kept, and running it twice is safe.
+- To undo: `cyclegen setup codex --remove`. **Your stored memories are left untouched.**
 
 - Plugin details and what gets wired: [plugins/cyclegen-core/README.md](./plugins/cyclegen-core/README.md)
-- Codex (manual wiring for now): [plugins/cyclegen-core/manifests/codex/README.md](./plugins/cyclegen-core/manifests/codex/README.md)
+- Wiring Codex by hand: [plugins/cyclegen-core/manifests/codex/README.md](./plugins/cyclegen-core/manifests/codex/README.md)
 
 ## MCP client configuration (manual)
 
