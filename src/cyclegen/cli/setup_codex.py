@@ -82,6 +82,13 @@ SKILL_MAP: tuple[tuple[str, str, str | None], ...] = (
         "cyclegen-init",
         "manifests/codex/skills-explicit/cyclegen-init/agents/openai.yaml",
     ),
+    # サイクル0（FR052・CYCLE15.16設計 / 17.2実装）。自動起動するのでサイドカーは無い。
+    # 配置dir名に接頭辞を付けるのは cyclegen-init と同じ理由＝`onboarding` は総称的で、
+    # 利用者や他ツールが同名dirを既に置いている可能性がある。その場合 apply_skills は
+    # 「管理外」と判定して**配置せず警告で終わる**ため、最も不慣れな初回利用者ほど
+    # サイクル0に到達できなくなる。呼び出しは frontmatter の `name: onboarding` に従い
+    # `$onboarding`（配置dir名ではない・CYCLE14.21 finding#2 の型）。
+    ("skills/onboarding", "cyclegen-onboarding", None),
 )
 
 # init の SKILL.md が参照する人格雛形。Codex の skill は自己完結ディレクトリのため

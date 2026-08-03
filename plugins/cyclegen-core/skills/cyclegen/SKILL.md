@@ -2,14 +2,14 @@
 name: cyclegen
 description: "CycleGenの明示起動フロントドア。利用者が明示指定でCycleGenを呼び出す単一入口。CYCLE開始/完了・記憶操作・思考モード指定へ振り分ける。自動起動はしない（明示起動専用）。"
 disable-model-invocation: true
-argument-hint: "[start | finish | memory | mode <x>]"
+argument-hint: "[start | finish | memory | onboard | mode <x>]"
 ---
 
 # CycleGen フロントドア（明示起動ルーター）
 
 > このスキルは **明示起動専用**。AIが自動で起動してはならない。
 > 利用者が明示指定で呼ぶ（Claude Code: `/cyclegen-core:cyclegen <arg>` ／ Codex: `$cyclegen <arg>`）。
-> 自動起動の判断は各スキルの description が担う（cyclegen-cycle / cyclegen-memory / cyclegen-glossary / cyclegen-ops）。本スキルは**自動起動が外したときの安全網**＋**思考モードの明示指定の受け皿**。
+> 自動起動の判断は各スキルの description が担う（cyclegen-cycle / cyclegen-memory / cyclegen-glossary / cyclegen-ops / onboarding）。本スキルは**自動起動が外したときの安全網**＋**思考モードの明示指定の受け皿**。
 
 ## 役割
 `$ARGUMENTS` の **第1トークン**を解釈し、対応する動作へ薄く振り分ける。複雑な判断は各スキル本体に委ね、ここでは**ルーティングのみ**を行う。
@@ -21,12 +21,13 @@ argument-hint: "[start | finish | memory | mode <x>]"
 | `start` | CYCLE開始（工数のNサイクル見積→Plan合意→`memory_search`で文脈注入） | Skill `cyclegen-cycle` のPlan/Doフロー |
 | `finish` | CYCLE完了処理（Do締め→Check宣言で停止→承認後Action） | Skill `cyclegen-cycle` の完了フロー |
 | `memory` | 記憶操作の判断基準（Layer/Context判定・store/boost/pin等）を参照 | Skill `cyclegen-memory` |
+| `onboard` | **初回のガイド付きオンボーディング**（サイクル0＝CYCLE0.1〜0.3）を開始／リセット後に再開する | Skill `onboarding` |
 | `mode <x>` | **思考モードを明示指定**し、対応する強化プロンプトを1つ返す（下表） | 本スキル §思考モード表 |
-| （引数なし） | 4分岐の使い方を1行ずつ案内して終了 | — |
+| （引数なし） | 5分岐の使い方を1行ずつ案内して終了 | — |
 
 ルーティング手順:
 1. `$ARGUMENTS` の第1トークンを取り出す。
-2. `start` / `finish` / `memory` のいずれかなら、対応スキルの該当フローを実行する（そのスキルを名指し起動してよい）。
+2. `start` / `finish` / `memory` / `onboard` のいずれかなら、対応スキルの該当フローを実行する（そのスキルを名指し起動してよい）。
 3. `mode` なら、第2トークン `<x>` を §思考モード表 の行に最も近いものへ意味マッチさせ、その**サジェスト文を1つだけ**返す。
 4. 引数が無い／未知のトークンなら、上表の使い方を簡潔に案内する。
 

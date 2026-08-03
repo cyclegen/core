@@ -21,15 +21,17 @@ cyclegen-core/
 │   ├── cyclegen-cycle/SKILL.md   〔自動起動〕PDCA・承認ゲート・完了処理・git・標準ディレクトリ構造
 │   ├── cyclegen-memory/SKILL.md  〔自動起動〕Layer/Context判定・よい記憶の書き方・トリガー語
 │   ├── cyclegen-glossary/SKILL.md 〔自動起動〕用語定義・思考の枠組み
-│   └── cyclegen-ops/SKILL.md     〔自動起動〕ツール固有操作（/clear・状態更新・Finish）
+│   ├── cyclegen-ops/SKILL.md     〔自動起動〕ツール固有操作（/clear・状態更新・Finish）
+│   └── onboarding/SKILL.md       〔自動起動〕サイクル0＝初回3サイクルの伴走（init直後の初日体験）
 ├── agents/
 │   └── cyclegen-persona.md       人格テンプレ雛形（デフォルト非起動・{{AI_NAME}}変数化）
 └── manifests/
     └── codex/                    ★Codex CLI 用の配線読み替えテンプレート（F4-3）
 ```
 
-スキルは**二重起動**: 4スキル（cycle/memory/glossary/ops）は description で**自動起動**、
+スキルは**二重起動**: 5スキル（cycle/memory/glossary/ops/onboarding）は description で**自動起動**、
 フロントドア/init は `disable-model-invocation:true` の**明示起動専用**。
+※ `onboarding` は初回限定の助走（サイクル0）。既存利用者の環境で自動起動しても、本文冒頭のガードで抜ける。
 
 ## 前提: uv の導入（★1行・全OS共通）
 

@@ -60,7 +60,7 @@ uvx --from "cyclegen[semantic,docx]" cyclegen setup codex --dry-run
 uvx --from "cyclegen[semantic,docx]" cyclegen setup codex
 ```
 
-`~/.codex/config.toml`（MCP）・`~/.codex/hooks.json`（規律層のhook）・`~/.agents/skills/`（スキル6本）に配線します。実行後は Codex を再起動してください。
+`~/.codex/config.toml`（MCP）・`~/.codex/hooks.json`（規律層のhook）・`~/.agents/skills/`（スキル7本）に配線します。実行後は Codex を再起動してください。
 
 - 既存の設定は書き換えず、バックアップ（`*.cyclegen-bak`）を取ります。2回実行しても壊れません。
 - 撤去は `cyclegen setup codex --remove`。**蓄積した記憶のデータは削除しません。**

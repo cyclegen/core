@@ -77,7 +77,7 @@ uvx --from "cyclegen[semantic,docx]" cyclegen setup codex --dry-run
 uvx --from "cyclegen[semantic,docx]" cyclegen setup codex
 ```
 
-This writes `~/.codex/config.toml` (MCP), `~/.codex/hooks.json` (the discipline hooks) and `~/.agents/skills/` (six skills). Restart Codex afterwards.
+This writes `~/.codex/config.toml` (MCP), `~/.codex/hooks.json` (the discipline hooks) and `~/.agents/skills/` (seven skills). Restart Codex afterwards.
 
 - Existing settings are never rewritten in place; backups (`*.cyclegen-bak`) are kept, and running it twice is safe.
 - To undo: `cyclegen setup codex --remove`. **Your stored memories are left untouched.**

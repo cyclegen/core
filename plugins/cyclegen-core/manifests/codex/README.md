@@ -12,6 +12,7 @@ Codex CLI は Claude Code のプラグインバンドル（`--plugin-dir`）を�
 | 共通ペイロード（CC版から流用） | Codex での配置先 | 形式 |
 |------------------------------|-----------------|------|
 | 自動起動4スキル `skills/cyclegen-{cycle,memory,glossary,ops}/SKILL.md` | `.agents/skills/<name>/SKILL.md`（REPO）または `~/.agents/skills/`（USER） | **そのままコピー**（同一 agentskills.io 標準） |
+| サイクル0 `skills/onboarding/SKILL.md`（自動起動・CYCLE17.2） | `~/.agents/skills/**cyclegen-onboarding**/SKILL.md` → 呼び出しは **`$onboarding`**（frontmatter `name: onboarding`） | **そのままコピー**（サイドカー不要）。★配置dir名だけ接頭辞を付ける＝`onboarding` は総称的で他と衝突しうるため（init と同じ理由） |
 | MCP 接続（`.mcp.json`） | `~/.codex/config.toml` の `[mcp_servers.cyclegen]` | `config.toml.example` を読み替え |
 | hook 配線（`hooks/hooks.json` + `*.sh`） | `~/.codex/hooks.json` ＋ スクリプトを絶対パス参照 | `hooks.json.example` を読み替え |
 | フロントドア `skills/cyclegen/`（明示起動） | `~/.agents/skills/cyclegen/SKILL.md`（本文コピー）＋ `agents/openai.yaml`（明示専用サイドカー） → `$cyclegen` / `/skills` | `skills-explicit/cyclegen/agents/openai.yaml` |
@@ -59,6 +60,7 @@ uvx --from "cyclegen[semantic,docx]" cyclegen setup codex --remove
 
 1. **4スキルをコピー**: CC版 `plugins/cyclegen-core/skills/cyclegen-{cycle,memory,glossary,ops}/` を `~/.agents/skills/`（または リポジトリ直下 `.agents/skills/`）へコピー。本文は無改変。
    - ⚠ ここに**複製を同梱しない**（single source 維持・乖離防止）。正本は常に CC版 skills。
+1-b. **サイクル0をコピー**（CYCLE17.2）: CC版 `skills/onboarding/` を `~/.agents/skills/cyclegen-onboarding/` へコピー（本文は無改変・サイドカー不要）。**コピー先のdir名だけ `cyclegen-` を付ける**（呼び出しは `$onboarding`）。
 2. **MCP**: `config.toml.example` の `[mcp_servers.cyclegen]` を `~/.codex/config.toml` へ追記。`command` は pip 配布後は `"cyclegen-mcp"`、未整備時は venv バイナリの**絶対パス**。
 3. **hook**: hook スクリプト `*.sh` を任意の固定場所（例 `~/.cyclegen/hooks/`）へ置き、`hooks.json.example` の `/ABSOLUTE/PATH/TO/hooks/` をその絶対パスに置換して `~/.codex/hooks.json` へ。
 4. **フロントドア/init（skills化・CYCLE14.17）**: CC版 `skills/cyclegen/SKILL.md`・`skills/init/SKILL.md` の**本文を無改変で** `~/.agents/skills/cyclegen/SKILL.md`・`~/.agents/skills/cyclegen-init/SKILL.md` へコピーし、本manifestの `skills-explicit/<name>/agents/openai.yaml`（明示専用サイドカー）を各スキルの `agents/openai.yaml` へコピーする。

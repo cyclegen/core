@@ -1,6 +1,6 @@
 ---
 name: cyclegen-cycle
-description: "CycleGenのCYCLE運営プロトコル本体。1サイクルのPlan→Do→Check→Actionフロー、承認ゲート（Doの最後で停止）、工数のNサイクル見積もり、ダイジェスト作成とCYCLE完了処理（cycle_complete）、git運用、コンテキストリセットの判断基準を扱う。起動: 「CYCLEを始める」「完了処理して」「Checkに入る」「ダイジェスト」「承認ゲート」「いつリセットすべき？」。※コンテキストリセット実行やdocx化はcyclegen-ops、記憶のLayer/Context判定はcyclegen-memory。"
+description: "CycleGenのCYCLE運営プロトコル本体。1サイクルのPlan→Do→Check→Actionフロー、承認ゲート（Doの最後で停止）、工数のNサイクル見積もり、ダイジェスト作成とCYCLE完了処理（cycle_complete）、git運用、コンテキストリセットの判断基準を扱う。起動: 「CYCLEを始める」「完了処理して」「Checkに入る」「ダイジェスト」「承認ゲート」「いつリセットすべき？」。※コンテキストリセット実行やdocx化はcyclegen-ops、記憶のLayer/Context判定はcyclegen-memory、CycleGenを初めて使う利用者の最初の3サイクル（サイクル0）はonboarding。本スキルはCYCLE1以降の通常運用を担う。"
 ---
 
 # CycleGen CYCLE 運営プロトコル
@@ -64,6 +64,7 @@ Actionフェーズで実行（有効化は利用者選択）:
 | 同一テーマの連続CYCLE | しない | 直前の文脈を活かせる |
 | 3 CYCLE以上連続 | する | 会話履歴がコンテキストを圧迫し品質が劣化 |
 | 利用者が明示的に「続けて」 | しない | 利用者判断を尊重 |
+| **★サイクル0（CYCLE0.1〜0.3）の各サイクル間** | **必ずする**（上の「同一テーマ」行の例外） | 品質維持ではなく**教育目的**——会話履歴が消えても記憶ストアから再開できることを体感させる。リセットしないと「記憶が思い出した」のか「会話が続いているだけ」なのか利用者に区別できない（Skill `onboarding` §5） |
 
 ## 標準ディレクトリ構造
 CycleGenプロジェクトの推奨構造。「プロジェクトを始めたい」または init（明示起動）で、言語を確認のうえ生成する。

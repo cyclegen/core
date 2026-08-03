@@ -84,8 +84,17 @@ def test_setup_wires_config_hooks_and_skills(env):
         assert Path(command).is_file()
 
     for name in ("cyclegen-cycle", "cyclegen-memory", "cyclegen-glossary",
-                 "cyclegen-ops", "cyclegen", "cyclegen-init"):
+                 "cyclegen-ops", "cyclegen", "cyclegen-init",
+                 "cyclegen-onboarding"):
         assert (env.skills_dir / name / "SKILL.md").is_file()
+
+    # ★SKILL_MAP と実配置の一致を機構で固定する（CYCLE17.2）。
+    # onboarding は payload に入っていたのに SKILL_MAP へ足し忘れていたため
+    # Codex 面にだけ配置されない状態だった。上の名前リストだけだと同じ
+    # 追加漏れをテストも一緒に見落とす（配布物は静的検証を回すまで信じない・14.11）。
+    assert {p.name for p in env.skills_dir.iterdir() if p.is_dir()} == {
+        name for _, name, _ in setup_codex.SKILL_MAP
+    }
 
     # 明示専用サイドカーと人格雛形（CYCLE14.17 finding#5）
     assert (env.skills_dir / "cyclegen" / "agents" / "openai.yaml").is_file()
