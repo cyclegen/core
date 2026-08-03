@@ -111,7 +111,7 @@ executive / minimal / creative / startup / wa-modern / deep-out / deep-out-paper
 
 - プラグイン（Claude Code / Codex）: [plugins/cyclegen-core/README.md](./plugins/cyclegen-core/README.md)
 - 変更履歴: [CHANGELOG.md](./CHANGELOG.md)
-- Webサイト・ガイド: **https://cyclegen.io** *(公開準備中)*
+- Webサイト・ガイド: **https://cyclegen.ai** *(公開準備中)*
 
 ## ライセンス
 

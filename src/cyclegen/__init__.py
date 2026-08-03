@@ -1,6 +1,18 @@
 """CycleGen Enterprise — 3次元記憶システム"""
 
-__version__ = "0.1.0"
+# 版数はインストール済みパッケージのメタデータ（＝pyproject の version）から引く。
+# CYCLE17.3 まではここに文字列を直書きしており、15.12 で pyproject を 0.1.1.dev0 へ
+# 上げた際に取り残されて "0.1.0" のままだった。同じ事実を2箇所で手管理すると
+# 更新されない側が必ず出るので、単一の出所から導出する。
+# 未インストール（リポジトリ直実行）では取得できないため既定値へ落とす。
+from importlib.metadata import PackageNotFoundError, version as _pkg_version
+
+try:
+    __version__ = _pkg_version("cyclegen")
+except PackageNotFoundError:  # pragma: no cover - インストールされていない実行経路
+    __version__ = "0.0.0+unknown"
+
+del _pkg_version, PackageNotFoundError
 
 
 def create_memory_system(config_path=None, home=None):

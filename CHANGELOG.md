@@ -15,11 +15,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (backups are written, running it twice is a no-op, other tools' hooks are left alone).
 - The plugin payload (hooks, skills, manifests) is now shipped inside the wheel at
   `cyclegen/_payload/` and copied to `~/.cyclegen/plugin/` on setup.
+- **Guided first cycle** (`onboarding` skill) — a three-step walkthrough that runs on
+  first use, so the memory store is exercised (stored, then recalled after a context
+  reset) before anything else is asked of you. Available on both Claude Code and Codex.
 
 ### Changed
 - The MCP server is launched via `uvx` on every surface, so **uv is now a prerequisite**
   rather than something the launcher installs on demand. Both READMEs document the
   one-line install for macOS/Linux and Windows.
+- The MCP launch configuration now **pins the package version** instead of resolving to
+  whatever is latest on PyPI. Without the pin, a plugin built against one release could
+  silently start a different one. The pin is applied consistently to the Claude Code
+  plugin (`.mcp.json`), the config written by `cyclegen setup codex`, and the manual
+  Codex template.
 
 ### Fixed
 - Graceful degradation when the Enterprise layer is absent (`cyclegen.org` import no

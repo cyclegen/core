@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cyclegen"
-version = "0.1.1.dev0"
+version = "0.1.1rc1"
 description = "CycleGen — 3次元記憶システム（スキル・記憶ストア）を備えた人間-AI協働フレームワーク"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://cyclegen.io"
+Homepage = "https://cyclegen.ai"
 Repository = "https://github.com/cyclegen/core"
 Changelog = "https://github.com/cyclegen/core/blob/main/CHANGELOG.md"
 

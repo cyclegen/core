@@ -22,7 +22,7 @@
 # --- 推奨: uvx 直指定（実行方法・OSに依存しない） ---
 [mcp_servers.cyclegen]
 command = "uvx"
-args = ["--from", "cyclegen[semantic,docx]", "cyclegen-mcp"]
+args = ["--from", "cyclegen[semantic,docx]==0.1.1rc1", "cyclegen-mcp"]
 # env を渡す場合は下のサブテーブルで（不要なら省略可）
 # [mcp_servers.cyclegen.env]
 # CYCLEGEN_HOME = "~/.cyclegen"
@@ -30,9 +30,11 @@ args = ["--from", "cyclegen[semantic,docx]", "cyclegen-mcp"]
 # ※ extras の semantic / docx は省略しないこと。省くと memory_search が縮退し
 #   finish 系ツールも出ない（CYCLE15.3 実発火で確認）。
 #
-# ※ 版ピン: 上の書き方は「常に最新版を引く」。特定版で検証したいときは extras の後ろに
-#   バージョンを付ける（例: "cyclegen[semantic,docx]==0.1.1"）。
-#   Phase4 の再検証では版を明示すること（CYCLE15.12 §11-5）。
+# ※ 版ピン（CYCLE17.3 で明示化）: 上の指定は版に固定してある。省くと「常に PyPI 最新の
+#   安定版を引く」挙動になり、pre-release（rc）で検証しても起動するのは旧安定版になる。
+#   MS1 の検証期間中は `==0.1.1rc1` に固定し、正式版 publish（17.9）で更新する。
+#   同じ版指定が `.mcp.json`（CC 面）と `setup_codex.py` の PACKAGE_SPEC にもあり、
+#   3箇所の一致はテストで固定されている。
 
 # --- 代替: pip / uv tool で PATH 上に導入済みの場合 ---
 # （`cyclegen setup codex --use-path` が書く形。cyclegen-mcp が恒久的に PATH にある人向け）

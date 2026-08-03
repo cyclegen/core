@@ -50,7 +50,15 @@ from pathlib import Path
 
 # uvx で引くパッケージ指定。extras を省くと memory_search が縮退し finish 系ツールも出ない
 # （CYCLE15.3 実発火で確認）。
-PACKAGE_SPEC = "cyclegen[semantic,docx]"
+#
+# ★版ピン（CYCLE17.3）。ここは `~/.codex/config.toml` に**書き込まれる**起動設定なので、
+#   無指定だと「setup を rc で実行しても、起動するのは PyPI 最新の安定版」になる。
+#   17.6 の本検証は配布物と同一内容でなければ意味がないため、検証期間中は rc に固定する。
+#   同じ指定が CC 面（plugins/cyclegen-core/.mcp.json）と手動配線テンプレ
+#   （manifests/codex/config.toml.example）にもあり、**3箇所が一致していること**を
+#   tests/unit/test_cli/test_setup_codex.py で機構的に固定している（17.2 F3 の適用）。
+#   正式版 publish（17.9）でこの値を更新すること。
+PACKAGE_SPEC = "cyclegen[semantic,docx]==0.1.1rc1"
 
 # 規律層 hook の実体ファイル名。hooks.json のマージ時に「自分のエントリ」を識別する鍵。
 # 旧来の手動配線（`~/.cyclegen/hooks/` 直置き・CYCLE14.17 期）も同名ゆえ拾えるので、

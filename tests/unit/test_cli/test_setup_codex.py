@@ -102,6 +102,87 @@ def test_setup_wires_config_hooks_and_skills(env):
     assert (env.skills_dir / "cyclegen-init" / "agents" / "cyclegen-persona.md").is_file()
 
 
+def test_package_spec_is_pinned_and_consistent_across_wirings(env):
+    """MCP 起動の版指定が3つの配線点で一致していること（CYCLE17.3）。
+
+    同じ「どの版を起動するか」が、面ごとに別ファイルへ散っている:
+
+      - CC 面        : plugins/cyclegen-core/.mcp.json
+      - Codex 面     : setup_codex.PACKAGE_SPEC（`~/.codex/config.toml` へ書き込まれる）
+      - 手動配線     : manifests/codex/config.toml.example
+
+    17.3 まで3つとも版無指定で、「rc を publish して rc で検証したつもりが、
+    起動していたのは PyPI 最新の安定版」になる状態だった。版ピンの必要は
+    config.toml.example のコメントに書かれていたが、**コメントは機構ではない**。
+    ここで3点の一致を固定して、片方だけ更新し忘れる経路を塞ぐ（17.2 F3 の適用）。
+    """
+    mcp_json = json.loads((PAYLOAD_SRC / ".mcp.json").read_text(encoding="utf-8"))
+    mcp_args = mcp_json["mcpServers"]["cyclegen"]["args"]
+    cc_spec = mcp_args[mcp_args.index("--from") + 1]
+
+    example = tomllib.loads(
+        (PAYLOAD_SRC / "manifests" / "codex" / "config.toml.example").read_text(
+            encoding="utf-8"
+        )
+    )
+    example_args = example["mcp_servers"]["cyclegen"]["args"]
+    example_spec = example_args[example_args.index("--from") + 1]
+
+    assert cc_spec == setup_codex.PACKAGE_SPEC == example_spec
+
+    # 版が指定されていること自体を要求する（無指定へ戻す変更を検出する）
+    assert "==" in setup_codex.PACKAGE_SPEC
+    # extras の欠落も同時に防ぐ（省くと memory_search が縮退・15.3）
+    assert setup_codex.PACKAGE_SPEC.startswith("cyclegen[semantic,docx]==")
+
+    # 定数が実際に書き込まれる所まで到達していること（定数だけ直して write 側が
+    # 別の文字列を持っている、を防ぐ）
+    assert run() == 0
+    written = tomllib.loads(env.config_toml.read_text(encoding="utf-8"))
+    assert written["mcp_servers"]["cyclegen"]["args"] == [
+        "--from",
+        setup_codex.PACKAGE_SPEC,
+        "cyclegen-mcp",
+    ]
+
+
+def _find_pyproject() -> Path | None:
+    """このチェックアウトの cyclegen パッケージ定義を上方探索する。"""
+    for parent in Path(__file__).resolve().parents:
+        cand = parent / "pyproject.toml"
+        if cand.is_file():
+            data = tomllib.loads(cand.read_text(encoding="utf-8"))
+            if data.get("project", {}).get("name") == "cyclegen":
+                return cand
+    return None
+
+
+def test_release_checkout_pins_its_own_version():
+    """配布用チェックアウトでは、版ピンが自分の版と一致すること（CYCLE17.3）。
+
+    3点一致テストは「3箇所が揃って古い」状態を検出できない。publish のたびに
+    pyproject の version は必ず上がるので、そこを唯一の出所として突き合わせる。
+    これで 17.9（`0.1.1rc1` → `0.1.1` の正式版）で PACKAGE_SPEC を更新し忘れると
+    **publish の前にテストが落ちる**。不可逆な操作の手前に機械的な関門を置く。
+
+    母艦は開発版（`.dev`）で、公開Coreとは版数が意図的に食い違う（母艦の wheel は
+    Enterprise 層入りなので、同名・中身違いを避けるため dev のまま据え置く）。
+    よって dev 版チェックアウトでは一致を要求しない。
+    """
+    pyproject = _find_pyproject()
+    assert pyproject is not None, "cyclegen の pyproject.toml が見つからない"
+    version = tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]["version"]
+
+    if ".dev" in version:
+        pytest.skip(f"開発版チェックアウト（version={version}）では版の一致を要求しない")
+
+    assert setup_codex.PACKAGE_SPEC.endswith(f"=={version}"), (
+        f"版ピンが古い: PACKAGE_SPEC={setup_codex.PACKAGE_SPEC!r} / "
+        f"pyproject version={version!r}。"
+        f".mcp.json と config.toml.example も併せて更新すること"
+    )
+
+
 def test_payload_is_copied_not_referenced(env):
     """配布物は必ずコピーされる（uvx キャッシュを指さない・CYCLE15.12.3 F15）。"""
     assert run() == 0

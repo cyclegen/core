@@ -103,7 +103,7 @@ This writes `~/.codex/config.toml` (MCP), `~/.codex/hooks.json` (the discipline 
 
 - Plugin (Claude Code / Codex): [plugins/cyclegen-core/README.md](./plugins/cyclegen-core/README.md)
 - Changelog: [CHANGELOG.md](./CHANGELOG.md)
-- Website & guides: **https://cyclegen.io** *(coming soon)*
+- Website & guides: **https://cyclegen.ai** *(coming soon)*
 
 ## License
 
