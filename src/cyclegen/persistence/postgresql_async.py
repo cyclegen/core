@@ -17,7 +17,7 @@ from datetime import datetime
 from typing import Any
 
 from cyclegen.models import Coordinates, Memory
-from cyclegen.persistence.base import PersistenceAdapter
+from cyclegen.persistence.base import PersistenceAdapter, with_content_hash
 
 try:
     import asyncpg
@@ -201,6 +201,8 @@ class AsyncPostgreSQLPersistence(PersistenceAdapter):
 
     async def async_update(self, memory_id: str, updates: dict) -> bool:
         t = self.table_name
+        # CYCLE20.5（FR061⓪）: content が変わるなら content_hash も一緒に変える
+        updates = with_content_hash(updates)
         field_map = {
             "content": "content",
             "coordinates.layer": "layer",

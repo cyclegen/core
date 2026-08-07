@@ -10,8 +10,37 @@ from __future__ import annotations
 from typing import Optional
 
 from cyclegen.config import format_3d_eval_prompt, load_3d_eval
+from cyclegen.mcp import event_source
 from cyclegen.mcp.server import _async_get_system, _get_config, mcp
 from cyclegen.models import EventType, SearchResult
+
+
+def _suffix(warning: str | None) -> str:
+    """警告があれば改行して後ろに付ける（無ければ空文字）。"""
+    return f"\n{warning}" if warning else ""
+
+
+def _format_dismiss_warning(memory_id: str, priority: float, manager) -> str:
+    """dismiss後のPriorityに応じた警告文を返す（CYCLE19.4 / A5-3）。
+
+    警告が要らない状態（まだ閾値より上）なら空文字を返す。
+    「黙って消える」を無くすのが目的なので、
+    消えたあとだけでなく、消える手前でも知らせる。
+    """
+    if manager.is_search_invisible(priority):
+        return (
+            "\n⚠ この記憶は検索結果に出なくなりました（Priority 0.00）。"
+            "ただし archived は立っていないため、memory_status では生きている記憶として数えられます。\n"
+            f"　片付けるなら memory_archive(\"{memory_id}\")（memory_unarchive で戻せます）／"
+            f"残すなら memory_boost(\"{memory_id}\")。"
+        )
+    if manager.is_archive_candidate(priority):
+        remaining = manager.dismisses_until_invisible(priority)
+        return (
+            f"\n⚠ archive候補です。あと{remaining}回のdismissで、この記憶は検索結果に出なくなります。\n"
+            f"　いま片付けるなら memory_archive(\"{memory_id}\")（memory_unarchive で戻せます）。"
+        )
+    return ""
 
 
 def _format_search_result(index: int, r: SearchResult) -> str:
@@ -275,17 +304,20 @@ async def memory_pin(memory_id: str) -> str:
     if result is None:
         return f"エラー: ID '{memory_id}' が見つかりません"
     await event_logger.async_log(EventType.PIN, memory_id)
-    return f"ピン留め完了: {memory_id}（Priority減衰停止）"
+    return f"ピン留め完了: {memory_id}（重要マーク。検索結果に📌表示）"
 
 
 @mcp.tool()
-async def memory_archive(memory_id: str) -> str:
+async def memory_archive(memory_id: str, source: str | None = None) -> str:
     """記憶をアーカイブする。通常検索から除外される（明示検索で復帰可能）。
 
     ★利用者が「いらない」「もう使わない」と言った時に呼ぶこと。
 
     Args:
         memory_id: 対象の記憶ID
+        source: この操作の出所（省略可）。explicit=利用者の判断（既定）/
+            maintenance=掃除・一括操作 / verification=受入確認・デモ。
+            cycle_complete が提示した候補への操作は自動で maintenance になる。
     """
     from cyclegen.saas.guard import guard_general
     await guard_general()
@@ -294,8 +326,9 @@ async def memory_archive(memory_id: str) -> str:
     result = await system.async_archive(memory_id)
     if result is None:
         return f"エラー: ID '{memory_id}' が見つかりません"
-    await event_logger.async_log(EventType.ARCHIVE, memory_id)
-    return f"アーカイブ完了: {memory_id}（検索除外）"
+    resolved, warning = event_source.resolve(memory_id, source)
+    await event_logger.async_log(EventType.ARCHIVE, memory_id, {"source": resolved})
+    return f"アーカイブ完了: {memory_id}（検索除外）{_suffix(warning)}"
 
 
 @mcp.tool()
@@ -319,13 +352,15 @@ async def memory_unarchive(memory_id: str) -> str:
 
 
 @mcp.tool()
-async def memory_boost(memory_id: str) -> str:
-    """検索結果が役立った時のフィードバック。Priority +0.15。
+async def memory_boost(memory_id: str, source: str | None = None) -> str:
+    """検索結果が役立った時のフィードバック。Priority +0.10。
 
     ★利用者が「役立った」「それそれ」と言った時に呼ぶこと。
 
     Args:
         memory_id: 対象の記憶ID
+        source: この操作の出所（省略可）。explicit=利用者の判断（既定）/
+            maintenance=掃除・一括操作 / verification=受入確認・デモ。
     """
     from cyclegen.saas.guard import guard_general
     await guard_general()
@@ -334,20 +369,34 @@ async def memory_boost(memory_id: str) -> str:
     result = await system.async_boost(memory_id)
     if result is None:
         return f"エラー: ID '{memory_id}' が見つかりません"
+    resolved, warning = event_source.resolve(memory_id, source)
     await event_logger.async_log(
-        EventType.BOOST, memory_id, {"new_priority": result.coordinates.priority}
+        EventType.BOOST,
+        memory_id,
+        {"new_priority": result.coordinates.priority, "source": resolved},
     )
-    return f"boost完了: {memory_id}（Priority → {result.coordinates.priority:.2f}）"
+    return (
+        f"boost完了: {memory_id}（Priority → {result.coordinates.priority:.2f}）"
+        f"{_suffix(warning)}"
+    )
 
 
 @mcp.tool()
-async def memory_dismiss(memory_id: str) -> str:
+async def memory_dismiss(memory_id: str, source: str | None = None) -> str:
     """検索結果が不適切だった時のフィードバック。Priority -0.10。
 
     ★利用者が「違う」「関係ない」と言った時に呼ぶこと。
 
+    dismissを重ねてPriorityが下がりきった記憶は検索結果に出なくなる。
+    閾値に達すると応答が「archive候補」として知らせるので、
+    その内容は利用者に伝えて判断を仰ぐこと（archiveするかは人が決める）。
+
     Args:
         memory_id: 対象の記憶ID
+        source: この操作の出所（省略可）。explicit=利用者の判断（既定）/
+            maintenance=掃除・一括操作 / verification=受入確認・デモ。
+            cycle_complete が「空振り常連」として提示した記憶への dismiss は、
+            指定しなくても自動で maintenance になる（掃除は利用ではない）。
     """
     from cyclegen.saas.guard import guard_general
     await guard_general()
@@ -356,10 +405,19 @@ async def memory_dismiss(memory_id: str) -> str:
     result = await system.async_dismiss(memory_id)
     if result is None:
         return f"エラー: ID '{memory_id}' が見つかりません"
+    resolved, source_warning = event_source.resolve(memory_id, source)
     await event_logger.async_log(
-        EventType.DISMISS, memory_id, {"new_priority": result.coordinates.priority}
+        EventType.DISMISS,
+        memory_id,
+        {"new_priority": result.coordinates.priority, "source": resolved},
     )
-    return f"dismiss完了: {memory_id}（Priority → {result.coordinates.priority:.2f}）"
+    new_priority = result.coordinates.priority
+    # CYCLE19.4（A5-3）: 消えるときは明示的に消す。判断は利用者に返す。
+    warning = _format_dismiss_warning(memory_id, new_priority, system.priority_manager)
+    return (
+        f"dismiss完了: {memory_id}（Priority → {new_priority:.2f}）"
+        f"{warning}{_suffix(source_warning)}"
+    )
 
 
 @mcp.tool()

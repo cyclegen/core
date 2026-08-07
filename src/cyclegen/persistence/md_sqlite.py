@@ -17,7 +17,7 @@ from pathlib import Path
 import yaml
 
 from cyclegen.models import Coordinates, Memory
-from cyclegen.persistence.base import PersistenceAdapter
+from cyclegen.persistence.base import PersistenceAdapter, with_content_hash
 
 
 class MdWithSQLitePersistence(PersistenceAdapter):
@@ -67,7 +67,8 @@ class MdWithSQLitePersistence(PersistenceAdapter):
                 access_count INTEGER DEFAULT 0,
                 score_version INTEGER DEFAULT 1,
                 version INTEGER DEFAULT 1,
-                embedding BLOB DEFAULT NULL
+                embedding BLOB DEFAULT NULL,
+                embedding_model TEXT DEFAULT NULL
             );
             CREATE INDEX IF NOT EXISTS idx_layer ON memory_index(layer);
             CREATE INDEX IF NOT EXISTS idx_priority ON memory_index(priority DESC);
@@ -93,6 +94,18 @@ class MdWithSQLitePersistence(PersistenceAdapter):
         except sqlite3.OperationalError:
             self.conn.execute("ALTER TABLE memory_index ADD COLUMN embedding BLOB DEFAULT NULL")
             self.conn.commit()
+        # マイグレーション: embedding_modelカラム追加（CYCLE19.2 / A8）
+        #
+        # 既存行は NULL のままにする。値を埋めない理由:
+        # 既存embeddingが実際どのモデル・どの版で作られたかは記録が無く、分からない。
+        # 現在のモデル名で埋めると「記録がある」ように見えてしまい、
+        # 次に本当にモデルが変わったとき、その行だけ検知をすり抜ける。
+        # NULL は「壊れている」ではなく「出所が不明」を意味する正しい状態。
+        try:
+            self.conn.execute("SELECT embedding_model FROM memory_index LIMIT 1")
+        except sqlite3.OperationalError:
+            self.conn.execute("ALTER TABLE memory_index ADD COLUMN embedding_model TEXT DEFAULT NULL")
+            self.conn.commit()
 
     def save(self, memory: Memory) -> bool:
         """mdファイル書出 + SQLiteインデックス更新。"""
@@ -103,7 +116,7 @@ class MdWithSQLitePersistence(PersistenceAdapter):
     def load(self, memory_id: str) -> Memory | None:
         """SQLiteからmd_pathを取得 → mdファイルを読み込んでMemoryに変換。"""
         row = self.conn.execute(
-            "SELECT md_path, embedding FROM memory_index WHERE id = ?", (memory_id,)
+            "SELECT md_path, embedding, embedding_model FROM memory_index WHERE id = ?", (memory_id,)
         ).fetchone()
         if row is None:
             return None
@@ -116,17 +129,18 @@ class MdWithSQLitePersistence(PersistenceAdapter):
         # embeddingはバイナリなのでSQLiteからのみ復元
         if row["embedding"] is not None:
             memory.embedding = bytes(row["embedding"])
+        memory.embedding_model = row["embedding_model"]
         return memory
 
     def load_all(self, include_archived: bool = False) -> list[Memory]:
         """SQLiteから全件のmd_pathを取得し、各mdを読み込む。"""
         if include_archived:
             rows = self.conn.execute(
-                "SELECT md_path, embedding FROM memory_index ORDER BY priority DESC"
+                "SELECT md_path, embedding, embedding_model FROM memory_index ORDER BY priority DESC"
             ).fetchall()
         else:
             rows = self.conn.execute(
-                "SELECT md_path, embedding FROM memory_index WHERE archived = FALSE ORDER BY priority DESC"
+                "SELECT md_path, embedding, embedding_model FROM memory_index WHERE archived = FALSE ORDER BY priority DESC"
             ).fetchall()
 
         memories = []
@@ -136,6 +150,7 @@ class MdWithSQLitePersistence(PersistenceAdapter):
                 memory = self._read_md(md_path)
                 if row["embedding"] is not None:
                     memory.embedding = bytes(row["embedding"])
+                memory.embedding_model = row["embedding_model"]
                 memories.append(memory)
         return memories
 
@@ -185,10 +200,15 @@ class MdWithSQLitePersistence(PersistenceAdapter):
         if memory is None:
             return False
 
+        # CYCLE20.5（FR061⓪）: content が変わるなら content_hash も一緒に変える
+        updates = with_content_hash(updates)
+
         # updatesを適用
         for key, value in updates.items():
             if key == "content":
                 memory.content = value
+            elif key == "content_hash":
+                memory.content_hash = value
             elif key == "coordinates.layer":
                 memory.coordinates.layer = value
             elif key == "coordinates.priority":
@@ -211,6 +231,8 @@ class MdWithSQLitePersistence(PersistenceAdapter):
                 memory.score_version = value
             elif key == "embedding":
                 memory.embedding = value
+            elif key == "embedding_model":
+                memory.embedding_model = value
 
         memory.updated_at = datetime.now()
         memory.version += 1
@@ -392,8 +414,8 @@ class MdWithSQLitePersistence(PersistenceAdapter):
                 (id, md_path, layer, priority, context, pinned, archived,
                  content_preview, tags, owner_id, agent_id,
                  created_at, updated_at, last_accessed_at, access_count, score_version, version,
-                 embedding)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 embedding, embedding_model)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 md_path = excluded.md_path,
                 layer = excluded.layer,
@@ -410,7 +432,8 @@ class MdWithSQLitePersistence(PersistenceAdapter):
                 access_count = excluded.access_count,
                 score_version = excluded.score_version,
                 version = excluded.version,
-                embedding = excluded.embedding
+                embedding = excluded.embedding,
+                embedding_model = excluded.embedding_model
             """,
             (
                 memory.id,
@@ -431,6 +454,7 @@ class MdWithSQLitePersistence(PersistenceAdapter):
                 memory.score_version,
                 memory.version,
                 memory.embedding,
+                memory.embedding_model,
             ),
         )
         self.conn.commit()

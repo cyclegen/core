@@ -12,7 +12,23 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from cyclegen.models import Memory
+from cyclegen.models import Memory, compute_content_hash
+
+
+def with_content_hash(updates: dict) -> dict:
+    """content を変える更新に、計算し直した content_hash を添える（CYCLE20.5 / FR061⓪）。
+
+    content_hash は本文の指紋なので、本文だけが変わって指紋が古いまま残ると、
+    **「ずれている記憶を見つける」ための道具そのものが壊れる**
+    （FR061① の検知は content_hash 照合で行う予定である）。
+
+    各バックエンドの update / async_update の入口で必ず通すこと。
+    呼び出し側が content と一緒に古い content_hash を渡してきた場合も、
+    本文から計算し直した値で上書きする（本文が正、指紋は従）。
+    """
+    if "content" not in updates:
+        return updates
+    return {**updates, "content_hash": compute_content_hash(updates["content"])}
 
 
 class PersistenceAdapter(ABC):

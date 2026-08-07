@@ -29,9 +29,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   plugin (`.mcp.json`), the config written by `cyclegen setup codex`, and the manual
   Codex template.
 
+- **Memory store diagnostics** (`memory_diagnostics`) now reports the health of the
+  store itself — coverage of returned memories, feedback rates, embedding provenance —
+  and stays silent about any figure it does not have enough data to judge.
+- **Idle-recall review**: `cycle_complete` lists memories that keep coming back in
+  searches but have never been marked as used, and offers three choices (dismiss,
+  split, leave). It only presents; nothing is rewritten. Nothing is shown at all when
+  the store is too young for the threshold to mean anything.
+- Dismissing a memory now warns **before** it disappears ("two more dismisses and this
+  memory will stop appearing in searches") instead of only after.
+- Every memory now records **which embedding model produced its vector**, so a model or
+  library change can be detected instead of having to be guessed.
+- `cycle_complete` accepts `used_memory_ids` — the memories actually used during the
+  cycle — so "returned by search" is no longer mistaken for "actually used".
+- `dismiss` / `boost` / `archive` record **where the operation came from** (a user's
+  judgement, a clean-up, or a verification run), so maintenance work no longer inflates
+  the quality figures. Set `CYCLEGEN_EVENT_SOURCE=verification` to mark a whole session.
+
+### Changed
+- The upper bound of `fastembed` is now pinned (`>=0.4,<0.9`). Pooling behaviour has
+  changed between minor releases before, and when it does, stored vectors and query
+  vectors end up in different spaces — no error, just quietly worse search results.
+- Updating a memory's text now regenerates its embedding **and** its content hash, so a
+  memory is never searched for by wording it no longer has.
+- The discipline hooks no longer require `jq`. They now run on a plain bash that ships
+  with the system, which is what Windows and older macOS actually have.
+
 ### Fixed
 - Graceful degradation when the Enterprise layer is absent (`cyclegen.org` import no
   longer aborts `memory_search` / `memory_status`).
+- Repeated `dismiss` now lands exactly on the lower bound instead of a floating-point
+  residue just above it, so threshold-based behaviour fires when it should.
 
 ## [0.1.0] - 2026-07-18
 

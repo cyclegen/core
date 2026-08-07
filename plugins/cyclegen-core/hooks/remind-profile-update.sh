@@ -3,6 +3,14 @@
 # CYCLE14.13: exit0 plain stdoutはモデル非到達(finding#4)→JSON additionalContextで注入
 # 出力形式: hookSpecificOutput.additionalContext（PostToolUseのplain stdoutはモデルに届かないため）
 
+# 共通のJSON関数（jq非依存・CYCLE20.4 / F-6）
+_HOOK_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+if [ ! -f "$_HOOK_DIR/_json.sh" ]; then
+  echo "CycleGen: hooks/_json.sh が見つかりません（規律層は注入されません）" >&2
+  exit 0
+fi
+. "$_HOOK_DIR/_json.sh"
+
 cat > /dev/null  # stdin(JSON)を読み捨て（EPIPE回避）
 
 MSG=$(cat <<'EOF'
@@ -15,4 +23,4 @@ cycle_completeが完了しました。利用者指示ファイル（Claude Code:
 EOF
 )
 
-jq -n --arg ctx "$MSG" '{hookSpecificOutput:{hookEventName:"PostToolUse",additionalContext:$ctx}}'
+emit_context "PostToolUse" "$MSG"

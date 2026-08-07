@@ -8,7 +8,6 @@ Markdown見出し単位のチャンク分割対応。
 from __future__ import annotations
 
 import argparse
-import hashlib
 import re
 import sys
 from pathlib import Path
@@ -20,7 +19,7 @@ from cyclegen.core.classifier import AutoLayerClassifier
 from cyclegen.core.context import ContextSelector
 from cyclegen.core.priority import PriorityManager
 from cyclegen.config import DEFAULT_CONTEXTS, load_config, load_contexts, resolve_home
-from cyclegen.models import ContextDefinition
+from cyclegen.models import ContextDefinition, compute_content_hash
 
 
 def discover_files(
@@ -342,7 +341,7 @@ def run_import(
                 context_dist[context] = context_dist.get(context, 0) + 1
 
                 # 重複チェック（CYCLE7.2.2）
-                content_hash = hashlib.sha256(chunk_content.encode("utf-8")).hexdigest()
+                content_hash = compute_content_hash(chunk_content)
                 is_duplicate = False
                 if system is not None and not force:
                     existing = system.find_by_hash(content_hash)

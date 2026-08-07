@@ -25,9 +25,20 @@ class DiagnosticsCollector:
         self.persistence = persistence
         self._priority_mgr = PriorityManager()
 
-    def collect(self, period_days: int = 30) -> DiagnosticsReport:
-        """全メトリクスを集計する。"""
-        all_memories = self.persistence.load_all(include_archived=True)
+    def collect(
+        self, period_days: int = 30, memories: list | None = None
+    ) -> DiagnosticsReport:
+        """全メトリクスを集計する。
+
+        Args:
+            memories: 読み込み済みの記憶（archived込み）。診断のように複数の集計を
+                続けて回す場面で、同じ `load_all` を何度も走らせないために渡す
+                （CYCLE19.6）。
+        """
+        all_memories = (
+            memories if memories is not None
+            else self.persistence.load_all(include_archived=True)
+        )
         active = [m for m in all_memories if not m.archived]
 
         # Layer分布
@@ -77,6 +88,17 @@ class DiagnosticsCollector:
         total_feedback = boost_count + dismiss_count
         boost_rate = boost_count / total_feedback if total_feedback > 0 else 0.0
 
+        # CYCLE19.6（A4）: 検索回数を分母にしたシグナル率。
+        # boost_rate（フィードバック内訳）では「そもそも判断を返していない」が見えない。
+        dismiss_rate = dismiss_count / total_searches if total_searches > 0 else 0.0
+        boost_rate_per_search = boost_count / total_searches if total_searches > 0 else 0.0
+
+        # CYCLE19.6（A4）: embeddingの出所の内訳（CYCLE19.2 の embedding_model 列）
+        embedding_model_dist: dict[str, int] = {}
+        for m in active:
+            key = m.embedding_model or ""
+            embedding_model_dist[key] = embedding_model_dist.get(key, 0) + 1
+
         # 昇格統計
         total_promotions = len(promote_events)
         avg_post_access = 0.0
@@ -96,6 +118,21 @@ class DiagnosticsCollector:
         )
         used_count = len(recall_used_events)
         precision_rate = used_count / total_recalled if total_recalled > 0 else 0.0
+
+        # source別の内訳（CYCLE19.3 FR035 方向3）
+        # 経路ごとに信頼度が違うので、混ぜたまま1つの数字にしない。
+        # source未指定（memory_mark_used の直接呼び出し）は "explicit" として数える。
+        #
+        # ★ここでの既定値は recall_used 限定の判断である（CYCLE20.5 / FR062①-a）。
+        #   recall_used は「利用者が使ったと言った」以外の入口が無かったので既定に倒せる。
+        #   dismiss / boost / archive は違う——source を書き始めたのはCYCLE20.5からで、
+        #   それ以前のイベントには検証や掃除が混ざっている（CYCLE19.7の実発火確認5回など）。
+        #   FR062①-b（MS2）でこれらを集計するときは、source の無いものを explicit に
+        #   倒さず "unknown" として別に数えること（FR062 受入条件3・CYCLE19.2 A8の規律）。
+        recall_used_by_source: dict[str, int] = {}
+        for e in recall_used_events:
+            src = e.details.get("source") or "explicit"
+            recall_used_by_source[src] = recall_used_by_source.get(src, 0) + 1
 
         # セッション別Precision（CYCLE13.2 FR031 P1）
         # session_idでsearch（recalled）とrecall_used（used）を紐付け、
@@ -152,6 +189,8 @@ class DiagnosticsCollector:
                 boost_count=boost_count,
                 dismiss_count=dismiss_count,
                 boost_rate=boost_rate,
+                dismiss_rate=dismiss_rate,
+                boost_rate_per_search=boost_rate_per_search,
             ),
             promotion_stats=PromotionStats(
                 total_promotions=total_promotions,
@@ -164,6 +203,8 @@ class DiagnosticsCollector:
                 session_count=session_count,
                 avg_session_precision=avg_session_precision,
                 session_precision=session_precision,
+                recall_used_by_source=recall_used_by_source,
             ),
+            embedding_model_distribution=embedding_model_dist,
             warnings=warnings,
         )

@@ -3,7 +3,7 @@
     "cyclegen": {
       "type": "stdio",
       "command": "uvx",
-      "args": ["--from", "cyclegen[semantic,docx]==0.1.1rc1", "cyclegen-mcp"],
+      "args": ["--from", "cyclegen[semantic,docx]==0.1.1rc2", "cyclegen-mcp"],
       "env": {}
     }
   }

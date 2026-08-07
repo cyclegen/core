@@ -7,7 +7,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import logging
 from datetime import datetime
 
@@ -18,8 +17,13 @@ logger = logging.getLogger(__name__)
 from cyclegen.core.classifier import AutoLayerClassifier
 from cyclegen.core.context import ContextSelector
 from cyclegen.core.layer import LayerHierarchy
-from cyclegen.core.priority import CURRENT_SCORE_VERSION, EventCounts, PriorityManager
-from cyclegen.models import Coordinates, Memory, SearchResponse
+from cyclegen.core.priority import (
+    ARCHIVE_CANDIDATE_THRESHOLD,
+    CURRENT_SCORE_VERSION,
+    EventCounts,
+    PriorityManager,
+)
+from cyclegen.models import Coordinates, Memory, SearchResponse, compute_content_hash
 from cyclegen.persistence.base import PersistenceAdapter
 from cyclegen.search.engine import SearchEngine
 
@@ -95,12 +99,16 @@ class MemorySystem3D:
             raise ValueError(f"Layer must be 1-5, got {layer}")
 
         coordinates = Coordinates(layer=layer, priority=priority, context=context)
-        content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+        content_hash = compute_content_hash(content)
 
         # CYCLE12.7.4: embedding自動生成
+        # CYCLE19.2 (A8): どのモデルで作ったかを一緒に記録する。
+        # embeddingとmodel_idは必ず同時に決まる（片方だけ入るとNULLの意味が濁る）。
         embedding = None
+        embedding_model = None
         if self._embedding_manager:
             embedding = self._embedding_manager.embed(content)
+            embedding_model = self._embedding_manager.model_id
 
         memory = Memory(
             content=content,
@@ -110,6 +118,7 @@ class MemorySystem3D:
             agent_id=agent_id,
             content_hash=content_hash,
             embedding=embedding,
+            embedding_model=embedding_model,
             score_version=CURRENT_SCORE_VERSION,
         )
 
@@ -145,8 +154,39 @@ class MemorySystem3D:
             max_items=max_items,
         )
 
+    def _with_refreshed_embedding(self, updates: dict) -> dict:
+        """contentが変わる更新なら、embeddingを作り直して updates に足す。
+
+        CYCLE19.1（A7）: store() はembeddingを生成するのに update() は
+        生成しておらず、内容を書き換えるとembeddingだけ古い内容のまま残っていた。
+        母艦2,067件のうち6件（0.3%）で実際にズレを確認（自己類似度 最低0.67）。
+        embeddingが古いままでも例外は出ず、その記憶が検索で当たらなくなるだけなので
+        利用者は気づけない。
+
+        呼び出し側が embedding を明示指定している場合（memory_reembed 等）は
+        そちらを尊重して何もしない。
+        """
+        if "content" not in updates:
+            return updates
+        if "embedding" in updates:
+            return updates
+        if self._embedding_manager is None:
+            return updates
+        # CYCLE19.2 (A8): embeddingを作り直したら出所も更新する。
+        # ここを忘れると「新しいembedding × 古いモデル名」という、
+        # 記録があるのに嘘という最悪の状態ができる。
+        return {
+            **updates,
+            "embedding": self._embedding_manager.embed(updates["content"]),
+            "embedding_model": self._embedding_manager.model_id,
+        }
+
     def update(self, memory_id: str, updates: dict) -> Memory | None:
-        """記憶のフィールドを更新する。version楽観的ロック。"""
+        """記憶のフィールドを更新する。version楽観的ロック。
+
+        content変更時はembeddingを再生成する（CYCLE19.1 / A7）。
+        """
+        updates = self._with_refreshed_embedding(updates)
         success = self.persistence.update(memory_id, updates)
         if not success:
             return None
@@ -157,7 +197,12 @@ class MemorySystem3D:
         return self.persistence.delete(memory_id)
 
     def pin(self, memory_id: str) -> Memory | None:
-        """pinned=True にする。Priority減衰を停止。"""
+        """pinned=True にする（重要マーク）。
+
+        CYCLE19.1: かつて「鮮度減衰を止める」と説明していたが、鮮度減衰は
+        CYCLE12.7.4で廃止済みで実装に存在せず、止める対象が無かった。
+        pinnedの実効果は検索結果での📌表示と、昇格の無条件候補化（Enterpriseのみ）。
+        """
         success = self.persistence.update(memory_id, {"pinned": True})
         if not success:
             return None
@@ -178,7 +223,7 @@ class MemorySystem3D:
         return self.persistence.load(memory_id)
 
     def boost(self, memory_id: str) -> Memory | None:
-        """Priority +0.15、access_count++。上限1.0。"""
+        """Priority +0.10、access_count++。上限1.0。"""
         memory = self.persistence.load(memory_id)
         if memory is None:
             return None
@@ -203,6 +248,45 @@ class MemorySystem3D:
             "last_accessed_at": datetime.now(),
         })
         return self.persistence.load(memory_id)
+
+    @staticmethod
+    def _select_archive_candidates(
+        memories: list[Memory], threshold: float | None
+    ) -> list[Memory]:
+        if threshold is None:
+            threshold = ARCHIVE_CANDIDATE_THRESHOLD
+        candidates = [
+            m for m in memories
+            if not m.archived and m.coordinates.priority <= threshold
+        ]
+        return sorted(candidates, key=lambda m: m.coordinates.priority)
+
+    def archive_candidates(
+        self, threshold: float | None = None, memories: list[Memory] | None = None
+    ) -> list[Memory]:
+        """archive候補（Priorityが閾値まで落ちた未archiveの記憶）を返す。
+
+        CYCLE19.4（A5-3）: 「検索から消えているのに生きていると数えられている記憶」を
+        利用者が一覧できるようにする経路。archiveするかどうかは人が決める。
+        表示（memory_diagnostics）はCYCLE19.6。
+
+        Priorityの低い順（＝消えるのに近い順）に並べて返す。
+
+        Args:
+            memories: 読み込み済みの記憶。診断のように複数の集計を続けて回す場面で、
+                同じ `load_all` を何度も走らせないために渡す（CYCLE19.6）。
+        """
+        if memories is None:
+            memories = self.persistence.load_all(include_archived=False)
+        return self._select_archive_candidates(memories, threshold)
+
+    async def async_archive_candidates(
+        self, threshold: float | None = None, memories: list[Memory] | None = None
+    ) -> list[Memory]:
+        """archive候補を返す（非同期版）。CYCLE19.4。"""
+        if memories is None:
+            memories = await self.persistence.async_load_all(include_archived=False)
+        return self._select_archive_candidates(memories, threshold)
 
     def record_access(self, memory_id: str) -> None:
         """access_count++ と last_accessed_at 更新。
@@ -254,12 +338,16 @@ class MemorySystem3D:
             raise ValueError(f"Layer must be 1-5, got {layer}")
 
         coordinates = Coordinates(layer=layer, priority=priority, context=context)
-        content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+        content_hash = compute_content_hash(content)
 
         # CYCLE12.7.4: embedding自動生成
+        # CYCLE19.2 (A8): どのモデルで作ったかを一緒に記録する。
+        # embeddingとmodel_idは必ず同時に決まる（片方だけ入るとNULLの意味が濁る）。
         embedding = None
+        embedding_model = None
         if self._embedding_manager:
             embedding = self._embedding_manager.embed(content)
+            embedding_model = self._embedding_manager.model_id
 
         memory = Memory(
             content=content,
@@ -269,6 +357,7 @@ class MemorySystem3D:
             agent_id=agent_id,
             content_hash=content_hash,
             embedding=embedding,
+            embedding_model=embedding_model,
             score_version=CURRENT_SCORE_VERSION,
         )
 
@@ -302,7 +391,11 @@ class MemorySystem3D:
         )
 
     async def async_update(self, memory_id: str, updates: dict) -> Memory | None:
-        """記憶のフィールドを更新する（非同期版）。"""
+        """記憶のフィールドを更新する（非同期版）。
+
+        content変更時はembeddingを再生成する（CYCLE19.1 / A7）。
+        """
+        updates = self._with_refreshed_embedding(updates)
         success = await self.persistence.async_update(memory_id, updates)
         if not success:
             return None
@@ -334,7 +427,7 @@ class MemorySystem3D:
         return await self.persistence.async_load(memory_id)
 
     async def async_boost(self, memory_id: str) -> Memory | None:
-        """Priority +0.15、access_count++（非同期版）。"""
+        """Priority +0.10、access_count++（非同期版）。"""
         memory = await self.persistence.async_load(memory_id)
         if memory is None:
             return None

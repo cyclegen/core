@@ -4,7 +4,7 @@
 # memory_store で Layer/Context が省略された場合、
 # この基準がAIエディタに返され、AIが内容を読んで2軸を判定する。
 #
-# CYCLE12: Priorityは0.3固定（利用実績で動的変動）のため、判定対象外。
+# CYCLE12.7: Priorityは0.5固定（利用実績で動的変動）のため、判定対象外。
 #
 # 利用者・組織がカスタマイズ可能。
 # 配置: ~/.cyclegen/3d-eval.yaml

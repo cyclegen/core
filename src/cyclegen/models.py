@@ -69,7 +69,7 @@ class EventType(str, Enum):
 class Coordinates(BaseModel):
     """3次元記憶座標: Layer(1-5) × Priority(0.0-1.0) × Context(文字列)
 
-    CYCLE12: Priority初期値0.3固定。利用実績で動的変動。
+    CYCLE12.7: Priority初期値0.5固定。利用実績で動的変動。
     """
 
     layer: int = Field(ge=1, le=5)
@@ -78,6 +78,16 @@ class Coordinates(BaseModel):
 
 
 # === 記憶オブジェクト ===
+
+
+def compute_content_hash(content: str) -> str:
+    """本文から content_hash（SHA-256）を計算する。
+
+    CYCLE20.5（FR061⓪）: 保存時と更新時で計算方法がずれないよう、
+    唯一の計算箇所をここに置く。content_hash は「本文の指紋」であり、
+    **本文が変わったら必ず一緒に変わる**というのがこの値の意味である。
+    """
+    return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
 class Memory(BaseModel):
@@ -98,6 +108,10 @@ class Memory(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.now)
     last_accessed_at: datetime = Field(default_factory=datetime.now)
     embedding: Optional[bytes] = None  # CYCLE12.7.1: セマンティック検索用ベクトル（float32 BLOB）
+    # CYCLE19.2: このembeddingを作ったモデルの識別子（例 "...MiniLM-L12-v2@fastembed0.8.0"）。
+    # None = 出所が記録されていない（A8導入前に保存された記憶）。
+    # 「不明」と「一致している」を区別できるようにするため、推測で埋めてはならない。
+    embedding_model: Optional[str] = None
     access_count: int = 0
     score_version: int = 1  # CYCLE12.6: Priorityロジックバージョン（v1=旧宣言的, v2=利用増進）
     version: int = 1
@@ -216,7 +230,13 @@ class SearchStats(BaseModel):
     avg_score: float
     boost_count: int
     dismiss_count: int
-    boost_rate: float  # boost / (boost + dismiss)
+    boost_rate: float  # boost / (boost + dismiss)＝フィードバックのうち肯定の割合
+
+    # CYCLE19.6（A4）: 分母が検索回数のシグナル率。
+    # boost_rate とは分母が違う（あちらはフィードバック総数）。
+    # 「どれくらい判断を返しているか」を見るので、こちらは検索回数で割る。
+    dismiss_rate: float = 0.0  # dismiss / 検索回数
+    boost_rate_per_search: float = 0.0  # boost / 検索回数
 
 
 class PromotionStats(BaseModel):
@@ -238,6 +258,16 @@ class PrecisionStats(BaseModel):
     avg_session_precision: float = 0.0  # セッション単位Precisionの平均（0.0-1.0）
     session_precision: dict[str, float] = Field(default_factory=dict)  # session_id -> precision
 
+    # CYCLE19.3 FR035 方向3: mark_usedがどの経路で記録されたかの内訳
+    # 経路ごとに信頼度が違うので、混ぜたまま1つの数字にしない。
+    #   "explicit"        : 利用者/AIが memory_mark_used を直接呼んだ
+    #   "cycle_complete_explicit": cycle_complete の used_memory_ids で渡された
+    #   "cycle_complete_auto"    : summary本文のID文字列をregex検出（弱い）
+    #   "cycle_complete_inferred": embedding照合による推定（FR035 方向4・未実装）
+    # 推定を足すと捕捉率が実態より高く見え、そこから導く閾値が甘くなるため、
+    # 「明示のみ」を常に取り出せる形で持つ。
+    recall_used_by_source: dict[str, int] = Field(default_factory=dict)
+
 
 class DiagnosticsReport(BaseModel):
     """memory_diagnostics ツールの出力"""
@@ -253,6 +283,12 @@ class DiagnosticsReport(BaseModel):
     search_stats: SearchStats
     promotion_stats: PromotionStats
     precision_stats: PrecisionStats  # CYCLE6.2: Memory Precision
+
+    # CYCLE19.6（A4）: embeddingの出所の内訳（CYCLE19.2 の embedding_model 列）。
+    # キーは model_id、未記録は "" で数える。
+    # 「不明」と「一致」を区別するのが目的なので、未記録をまとめて0扱いにしない。
+    embedding_model_distribution: dict[str, int] = Field(default_factory=dict)
+
     warnings: list[str] = Field(default_factory=list)  # CYCLE12: 偏り警告
 
 

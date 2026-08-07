@@ -9,12 +9,20 @@
 # 2. CYCLE進行ディレクトリにCYCLE番号付きファイルを書いたがダイジェストではない → ダイジェスト別途作成を促す
 #    CYCLE進行ディレクトリ = docs/cycles/（開発構造）／ドキュメント/91_サイクル進行/・docs/91_cycles/（標準構造）
 
+# 共通のJSON関数（jq非依存・CYCLE20.4 / F-6）
+_HOOK_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+if [ ! -f "$_HOOK_DIR/_json.sh" ]; then
+  echo "CycleGen: hooks/_json.sh が見つかりません（規律層は注入されません）" >&2
+  exit 0
+fi
+. "$_HOOK_DIR/_json.sh"
+
 INPUT=$(cat)
-FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
+FILE_PATH=$(json_get_string "$INPUT" file_path)
 
 # additionalContext JSON を stdout に出す
 emit() {
-  jq -n --arg ctx "$1" '{hookSpecificOutput:{hookEventName:"PreToolUse",additionalContext:$ctx}}'
+  emit_context "PreToolUse" "$1"
 }
 
 # ケース1: ダイジェスト_承認前の作成

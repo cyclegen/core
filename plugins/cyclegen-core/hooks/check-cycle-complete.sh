@@ -10,8 +10,16 @@
 # 探索: プロジェクトルート配下を再帰探索し、標準構造（ドキュメント/91_サイクル進行/・docs/91_cycles/）も
 #   開発構造（docs/cycles/）も1ロジックで吸収する。ルートはenv非依存で特定（CC/Codex両対応）。
 
+# 共通のJSON関数（jq非依存・CYCLE20.4 / F-6）
+_HOOK_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+if [ ! -f "$_HOOK_DIR/_json.sh" ]; then
+  echo "CycleGen: hooks/_json.sh が見つかりません（CYCLEドキュメントの確認は行われません）" >&2
+  exit 0
+fi
+. "$_HOOK_DIR/_json.sh"
+
 INPUT=$(cat)
-CYCLE_ID=$(echo "$INPUT" | jq -r '.tool_input.cycle_id // empty')
+CYCLE_ID=$(json_get_string "$INPUT" cycle_id)
 
 if [ -z "$CYCLE_ID" ]; then
   # cycle_idが指定されていない場合はチェックをスキップ
@@ -29,7 +37,7 @@ CYCLE_NUM=$(echo "$CYCLE_ID" | sed 's/^CYCLE//')
 if [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
   ROOT="$CLAUDE_PROJECT_DIR"
 else
-  CWD_FROM_JSON=$(echo "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
+  CWD_FROM_JSON=$(json_get_string "$INPUT" cwd 2>/dev/null)
   START_DIR="${CWD_FROM_JSON:-$PWD}"
   ROOT="$START_DIR"
   d="$START_DIR"

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cyclegen"
-version = "0.1.1rc1"
+version = "0.1.1rc2"
 description = "CycleGen — 3次元記憶システム（スキル・記憶ストア）を備えた人間-AI協働フレームワーク"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
@@ -27,7 +27,13 @@ docx = [
     "python-docx>=1.0.0",
 ]
 semantic = [
-    "fastembed>=0.4",
+    # 上限を切る理由（CYCLE19.1 / A3）:
+    # fastembed はモデルのプーリング方式を版間で変更することがある
+    # （0.5.1→0.6 で paraphrase-multilingual-MiniLM-L12-v2 が CLS → mean pooling）。
+    # 変わると保存済みembeddingとクエリembeddingが別空間になり、
+    # 例外を出さずに検索品質だけが落ちる（＝利用者が気づけない）。
+    # 動作確認済みは 0.8.x。次のマイナーは検証してから上限を上げること。
+    "fastembed>=0.4,<0.9",
     "numpy>=1.24",
 ]
 dev = [

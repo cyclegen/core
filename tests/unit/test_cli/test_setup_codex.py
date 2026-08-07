@@ -196,10 +196,24 @@ def test_payload_is_copied_not_referenced(env):
 
 def test_hook_scripts_are_executable(env):
     assert run() == 0
-    scripts = list((env.plugin_dir / "hooks").glob("*.sh"))
+    # `_` で始まるものは hooks.json から呼ばれる hook ではなく、hook が読み込む共通部品
+    # （CYCLE20.4 で `_json.sh` を追加。jq依存を外すため）。hook本体は6本のまま。
+    scripts = [
+        p for p in (env.plugin_dir / "hooks").glob("*.sh") if not p.name.startswith("_")
+    ]
     assert len(scripts) == 6
     for script in scripts:
         assert script.stat().st_mode & 0o111
+
+
+def test_hook_helper_is_deployed_alongside_hooks(env):
+    """`_json.sh` が hook と同じディレクトリに配置されること（CYCLE20.4 / F-6）。
+
+    hook は `BASH_SOURCE` から自分の隣を読む。配置が漏れると6本すべてが
+    「_json.sh が見つかりません」で何も注入しなくなる＝規律層が丸ごと落ちる。
+    """
+    assert run() == 0
+    assert (env.plugin_dir / "hooks" / "_json.sh").is_file()
 
 
 def test_use_path_writes_path_command(env):

@@ -146,12 +146,12 @@ def format_3d_eval_prompt(eval_criteria: dict, content_preview: str) -> str:
     """2軸評価基準をAIエディタ向けプロンプトに整形する。
 
     memory_storeでLayer/Contextが省略された場合にレスポンスとして返すテキスト。
-    CYCLE12: Priorityは0.3固定（利用実績で動的変動）のため、2軸判定に簡略化。
+    CYCLE12.7: Priorityは0.5固定（利用実績で動的変動）のため、2軸判定に簡略化。
     """
     lines = [
         "【2軸評価リクエスト】",
         "以下の内容を3次元記憶に保存します。Layer/Contextを評価してください。",
-        "（Priorityは0.3固定で自動設定されます。利用実績で動的に変動します。）",
+        "（Priorityは0.5固定で自動設定されます。利用実績で動的に変動します。）",
         "",
         "--- 保存する内容（プレビュー） ---",
         content_preview[:500] + ("..." if len(content_preview) > 500 else ""),

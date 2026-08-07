@@ -7,6 +7,14 @@
 # AIエディタに「Contextは記憶の内容で判断せよ」とリマインドする
 # 出力形式: hookSpecificOutput.additionalContext（PreToolUseのplain stdoutはモデルに届かないため）
 
+# 共通のJSON関数（jq非依存・CYCLE20.4 / F-6）
+_HOOK_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+if [ ! -f "$_HOOK_DIR/_json.sh" ]; then
+  echo "CycleGen: hooks/_json.sh が見つかりません（規律層は注入されません）" >&2
+  exit 0
+fi
+. "$_HOOK_DIR/_json.sh"
+
 cat > /dev/null  # stdin(JSON)を読み捨て（EPIPE回避）
 
 MSG=$(cat <<'EOF'
@@ -26,4 +34,4 @@ memory_storeのcontext引数は「記憶の内容が属するContext」で判断
 EOF
 )
 
-jq -n --arg ctx "$MSG" '{hookSpecificOutput:{hookEventName:"PreToolUse",additionalContext:$ctx}}'
+emit_context "PreToolUse" "$MSG"

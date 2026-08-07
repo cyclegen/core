@@ -358,7 +358,8 @@ class TestCycleComplete:
 
         summary = f"## 成果\n記憶 {mem_id} を参照して作業した"
         result = await cycle_complete(summary, cycle_id="TEST-FR008")
-        assert "mark_used自動推定: 1件" in result
+        # CYCLE19.3(FR035 方向3)で出力形式が変わった: 明示と本文検出を分けて報告する
+        assert "本文検出1件" in result
 
         events = server_module._event_logger.get_events(EventType.RECALL_USED)
         used_ids = [e.memory_id for e in events]
@@ -373,14 +374,14 @@ class TestCycleComplete:
         """summaryにIDがない場合はmark_used 0件"""
         from cyclegen.mcp.tools.lifecycle import cycle_complete
         result = await cycle_complete("IDなしの報告書", cycle_id="TEST-NO-ID")
-        assert "mark_used自動推定: 0件" in result
+        assert "明示0件 / 本文検出0件" in result
 
     async def test_mark_used_auto_nonexistent_id(self):
         """存在しないIDはスキップされる"""
         from cyclegen.mcp.tools.lifecycle import cycle_complete
         summary = "参照: mem_20260424_000000_deadbeef を使った"
         result = await cycle_complete(summary, cycle_id="TEST-NOEXIST")
-        assert "mark_used自動推定: 0件" in result
+        assert "明示0件 / 本文検出0件" in result
 
     async def test_hitl_no_qualifying(self):
         """Org有効だが基準を満たす記憶がない場合"""

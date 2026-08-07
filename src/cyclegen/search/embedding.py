@@ -22,6 +22,30 @@ class EmbeddingManager:
         self._model_name = model_name
         self._model = None  # 遅延初期化
 
+    @property
+    def model_id(self) -> str:
+        """このmanagerが作るembeddingの出所を表す識別子（CYCLE19.2 / A8）。
+
+        `<model_name>@fastembed<version>` の形。記憶に一緒に保存し、
+        あとから「このembeddingは何で作られたか」を問い合わせられるようにする。
+
+        なぜ版まで含めるか:
+        fastembedは同じmodel_nameのままプーリング方式を変えたことがある
+        （0.5.1→0.6 で paraphrase-multilingual-MiniLM-L12-v2 が CLS → mean pooling）。
+        model_nameだけでは「同じモデル」に見えてしまい、
+        保存済みembeddingとクエリembeddingが別空間になったことを検知できない。
+
+        fastembedが入っていない環境では版を "unknown" とする（呼び出し側は
+        embeddingを作れないので、この値が記憶に載ることは通常ない）。
+        """
+        try:
+            from importlib.metadata import version
+
+            fe_version = version("fastembed")
+        except Exception:
+            fe_version = "unknown"
+        return f"{self._model_name}@fastembed{fe_version}"
+
     def _ensure_model(self) -> None:
         if self._model is None:
             from fastembed import TextEmbedding

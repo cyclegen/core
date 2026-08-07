@@ -13,10 +13,129 @@ from __future__ import annotations
 import json
 from collections import defaultdict
 
-from cyclegen.core.priority import CURRENT_SCORE_VERSION, EventCounts, PriorityManager
+import cyclegen.mcp.server as _server
+from cyclegen.core.priority import (
+    ARCHIVE_CANDIDATE_THRESHOLD,
+    CURRENT_SCORE_VERSION,
+    EventCounts,
+    PriorityManager,
+)
 from cyclegen.mcp.server import _async_get_system, mcp
 from cyclegen.models import EventType
 from cyclegen.monitoring.collector import DiagnosticsCollector
+from cyclegen.monitoring.idle_recall import MIN_SLOTS_FOR_ESTIMATE, IdleRecallAnalyzer
+
+# 健康状態の判定閾値（CYCLE19.6 / A4）
+# 出典: CYCLE19 健全性調査レポート §10-1 の C3・C4・C6。
+# **母艦1台の実測から置いた暫定値**であり、2〜3回まわしてから調整する。
+_UNRETURNED = (0.30, 0.50)  # 未返却率: これ未満なら🟢 / 🟡 / 超えたら🔴
+_CONCENTRATION = (0.20, 0.35)  # 上位1%の返却スロット占有率
+_DISMISS_RATE = (0.02, 0.005)  # dismiss率: 以上なら🟢 / 🟡 / 未満なら🔴（向きが逆）
+
+
+def _judge_low_is_good(value: float, thresholds: tuple[float, float]) -> str:
+    good, warn = thresholds
+    if value < good:
+        return "🟢"
+    if value <= warn:
+        return "🟡"
+    return "🔴"
+
+
+def _judge_high_is_good(value: float, thresholds: tuple[float, float]) -> str:
+    good, warn = thresholds
+    if value >= good:
+        return "🟢"
+    if value >= warn:
+        return "🟡"
+    return "🔴"
+
+
+def _health_lines(report, idle, archive_candidates, active_ids: set) -> list[str]:
+    """「記憶ストアの調子は？」に答える section（CYCLE19.6 / A4）。
+
+    ★判定（🟢🟡🔴）は、判定できるだけのデータがあるときだけ出す。
+    使い始めの利用者に「未返却率100% 🔴」と言うのは、
+    調子が悪いのではなく**まだ測れていない**だけである（CYCLE19.5 知見1と同じ筋）。
+    """
+    lines = ["\n--- 記憶の健康状態（全期間） ---"]
+
+    judgeable = idle.total_slots >= MIN_SLOTS_FOR_ESTIMATE
+    if not judgeable:
+        lines.append(
+            f"  ※ 返却スロットが{idle.total_slots}件（{MIN_SLOTS_FOR_ESTIMATE}件未満）＝"
+            "まだ判定できません。数値だけ出します"
+        )
+
+    def mark(symbol: str) -> str:
+        return f"  {symbol}" if judgeable else ""
+
+    # C3: 一度も検索で返っていない記憶（「未利用」とは別物）
+    unreturned = idle.unreturned_ratio(active_ids)
+    lines.append(
+        f"  未返却率: {unreturned:.1%}"
+        f"（{idle.returned_count(active_ids)}/{len(active_ids)}件は返却経験あり）"
+        + mark(_judge_low_is_good(unreturned, _UNRETURNED))
+    )
+
+    # C4: 返却の集中（検索が同じ記憶に固着していないか）
+    top_n, share = idle.top_share(len(active_ids))
+    if top_n:
+        lines.append(
+            f"  返却集中度: 上位{top_n}件が全返却スロットの{share:.1%}を占有"
+            + mark(_judge_low_is_good(share, _CONCENTRATION))
+        )
+
+    # C6: 判断を返しているか（時間で減衰しない設計なので、これが0だと何も沈まない）
+    s = report.search_stats
+    if s.total_searches:
+        lines.append(
+            f"  dismiss率: {s.dismiss_rate:.2%}（検索1回あたり）"
+            + mark(_judge_high_is_good(s.dismiss_rate, _DISMISS_RATE))
+        )
+        lines.append(f"  boost率: {s.boost_rate_per_search:.2%}（検索1回あたり）")
+
+    # mark_used捕捉率（CYCLE19.3の集計）。空振り常連の閾値Nはこの値から決まる
+    lines.append(
+        f"  mark_used捕捉率: {idle.capture_rate:.1%}"
+        f"（{idle.used_count}/{idle.total_slots}スロット）"
+    )
+
+    # 空振り常連（CYCLE19.5）
+    if idle.candidates:
+        lines.append(
+            f"  空振り常連: {len(idle.candidates)}件"
+            f"（返却スロットの{idle.occupied_ratio:.1%}を占有・閾値は返却{idle.threshold}回以上）"
+            "→ cycle_complete で候補を提示します"
+        )
+    elif idle.threshold is not None:
+        lines.append(f"  空振り常連: 0件（閾値は返却{idle.threshold}回以上）")
+
+    # archive候補（CYCLE19.4）
+    lines.append(
+        f"  archive候補: {len(archive_candidates)}件"
+        f"（Priority {ARCHIVE_CANDIDATE_THRESHOLD} 以下＝検索から消えかけている記憶）"
+    )
+
+    # embeddingの出所（CYCLE19.2 の embedding_model 列）
+    dist = report.embedding_model_distribution
+    if dist:
+        unknown = dist.get("", 0)
+        known = {k: v for k, v in dist.items() if k}
+        if not known:
+            lines.append(f"  embedding: 全{unknown}件がモデル未記録（19.2以前に保存）")
+        else:
+            known_desc = " / ".join(f"{k}: {v}件" for k, v in sorted(known.items()))
+            suffix = f" / 未記録: {unknown}件" if unknown else ""
+            lines.append(f"  embedding: {known_desc}{suffix}")
+            if len(known) > 1:
+                # 複数モデルが混在＝保存済みとクエリが別空間になっている可能性
+                lines.append(
+                    "  ⚠ embeddingのモデルが混在しています。"
+                    "memory_reembed で作り直すと検索精度が戻ることがあります"
+                )
+
+    return lines
 
 
 @mcp.tool()
@@ -33,8 +152,22 @@ async def memory_diagnostics(period_days: int = 30) -> str:
     await guard_general()
 
     system, _, event_logger = await _async_get_system()
+
+    # CYCLE19.6（A4）: 記憶の読み込みは1回だけ。
+    # collector・空振り常連・archive候補の3つが同じ全件読み込みを必要とするので、
+    # ここで読んで配る（別々に読むとストアが育つほど3倍の時間がかかる）。
+    memories = await system.persistence.async_load_all(include_archived=True)
+    active_ids = {m.id for m in memories if not m.archived}
+
     collector = DiagnosticsCollector(event_logger, system.persistence)
-    report = collector.collect(period_days=period_days)
+    report = collector.collect(period_days=period_days, memories=memories)
+
+    # CYCLE19.6: 19.4・19.5で作った集計を呼ぶだけにする（同じロジックを書き直さない）
+    idle = await IdleRecallAnalyzer(event_logger, system.persistence).async_analyze(
+        memories=memories
+    )
+    archive_candidates = await system.async_archive_candidates(memories=memories)
+    org_enabled = bool(_server._config and _server._config.org_server_enabled)
 
     lines = [
         "=== 3次元記憶 診断レポート ===",
@@ -62,22 +195,28 @@ async def memory_diagnostics(period_days: int = 30) -> str:
     lines.append(f"アーカイブ: {report.archived_count}件")
     lines.append(f"未利用（access_count=0）: {report.access_count_zero}件")
 
-    lines.append("\n--- 検索品質 ---")
+    lines.append(f"\n--- 検索品質（直近{period_days}日） ---")
     s = report.search_stats
     lines.append(f"  検索回数: {s.total_searches}")
     lines.append(f"  平均スコア: {s.avg_score:.1f}")
     lines.append(f"  boost: {s.boost_count}回 / dismiss: {s.dismiss_count}回")
-    lines.append(f"  boost率: {s.boost_rate:.0%}")
+    lines.append(f"  フィードバックのうちboost: {s.boost_rate:.0%}")
 
-    lines.append("\n--- 昇格統計 ---")
-    p = report.promotion_stats
-    lines.append(f"  昇格回数: {p.total_promotions}")
-    lines.append(f"  昇格後の平均参照回数: {p.avg_post_promotion_access:.1f}")
+    lines.extend(_health_lines(report, idle, archive_candidates, active_ids))
+
+    # 昇格はEnterprise（Org Layer）だけの機能。
+    # CYCLE19.6（A4）: Core構成で「昇格回数: 0」を出すのは、
+    # 存在しない機能の数字を見せることになる（A1と同種のずれ）。
+    if org_enabled:
+        lines.append("\n--- 昇格統計 ---")
+        p = report.promotion_stats
+        lines.append(f"  昇格回数: {p.total_promotions}")
+        lines.append(f"  昇格後の平均参照回数: {p.avg_post_promotion_access:.1f}")
 
     lines.append("\n--- 3指標（証明装置） ---")
     pr = report.precision_stats
     lines.append(f"  Memory Precision: {pr.precision_rate:.0%}（{pr.used_count}/{pr.total_recalled}）")
-    lines.append(f"  boost率（検索品質）: {s.boost_rate:.0%}")
+    lines.append(f"  フィードバックのうちboost: {s.boost_rate:.0%}")
     lines.append(f"  平均検索スコア: {s.avg_score:.1f}")
 
     # セッション別Precision（CYCLE13.2 FR031 P1）
@@ -86,6 +225,13 @@ async def memory_diagnostics(period_days: int = 30) -> str:
             f"  セッション別Precision: {pr.avg_session_precision:.0%}"
             f"（{pr.session_count}セッション平均）"
         )
+    # mark_usedの経路別内訳（CYCLE19.3 FR035 方向3）
+    if pr.recall_used_by_source:
+        breakdown = " / ".join(
+            f"{src}: {n}件"
+            for src, n in sorted(pr.recall_used_by_source.items(), key=lambda kv: -kv[1])
+        )
+        lines.append(f"  mark_usedの経路: {breakdown}")
 
     if report.warnings:
         lines.append("\n--- 警告 ---")
@@ -252,10 +398,14 @@ async def memory_reembed(dry_run: bool = True) -> str:
     embeddings = emb_mgr.embed_batch(contents)
 
     # 保存
+    # CYCLE19.2 (A8): embeddingと出所は必ず同時に書く。
+    # 片方だけ書くと「新しいembedding × 記録なし/古い記録」になり、
+    # 次にモデルが変わったときこの行だけ検知をすり抜ける。
     saved = 0
     for memory, embedding in zip(targets, embeddings):
         success = await system.persistence.async_update(memory.id, {
             "embedding": embedding,
+            "embedding_model": emb_mgr.model_id,
         })
         if success:
             saved += 1

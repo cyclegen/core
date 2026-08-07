@@ -17,6 +17,14 @@
 #
 # 注: stdin（ユーザーメッセージ）は条件分岐に使わない。常時無条件で注入する。
 
+# 共通のJSON関数（jq非依存・CYCLE20.4 / F-6）
+_HOOK_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+if [ ! -f "$_HOOK_DIR/_json.sh" ]; then
+  echo "CycleGen: hooks/_json.sh が見つかりません（規律層は注入されません）" >&2
+  exit 0
+fi
+. "$_HOOK_DIR/_json.sh"
+
 # stdin を読み捨てる（パイプの後段がブロックしないように）
 cat > /dev/null
 
@@ -46,4 +54,4 @@ if ! command -v uvx >/dev/null 2>&1 && ! command -v uv >/dev/null 2>&1; then
   ※この案内は利用者にそのまま伝えること。"
 fi
 
-jq -n --arg ctx "$PRIMER" '{hookSpecificOutput:{hookEventName:"UserPromptSubmit",additionalContext:$ctx}}'
+emit_context "UserPromptSubmit" "$PRIMER"

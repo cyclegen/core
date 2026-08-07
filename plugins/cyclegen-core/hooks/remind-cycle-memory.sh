@@ -11,6 +11,14 @@
 #   ＝Claude Code / Codex 共通。非該当時は無出力（exit 0 の no-op＝両ツールが受理）。
 #   plain stdout は Codex 0.142.5 が拒否するためJSON化した（単一ソース維持）。
 
+# 共通のJSON関数（jq非依存・CYCLE20.4 / F-6）
+_HOOK_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+if [ ! -f "$_HOOK_DIR/_json.sh" ]; then
+  echo "CycleGen: hooks/_json.sh が見つかりません（規律層は注入されません）" >&2
+  exit 0
+fi
+. "$_HOOK_DIR/_json.sh"
+
 # ユーザーのメッセージを取得（stdinから読み取り）
 USER_MESSAGE=$(cat)
 
@@ -50,5 +58,5 @@ fi
 
 # 該当があればJSON出力、なければ無出力（no-op）
 if [ -n "$REMIND" ]; then
-  jq -n --arg ctx "$REMIND" '{hookSpecificOutput:{hookEventName:"UserPromptSubmit",additionalContext:$ctx}}'
+  emit_context "UserPromptSubmit" "$REMIND"
 fi
