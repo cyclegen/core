@@ -1,4 +1,4 @@
-"""CycleGen Enterprise — 3次元記憶システム"""
+"""CycleGen — 3次元記憶システム（スキル・記憶ストア）"""
 
 # 版数はインストール済みパッケージのメタデータ（＝pyproject の version）から引く。
 # CYCLE17.3 まではここに文字列を直書きしており、15.12 で pyproject を 0.1.1.dev0 へ

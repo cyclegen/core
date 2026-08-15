@@ -58,7 +58,7 @@ from pathlib import Path
 #   （manifests/codex/config.toml.example）にもあり、**3箇所が一致していること**を
 #   tests/unit/test_cli/test_setup_codex.py で機構的に固定している（17.2 F3 の適用）。
 #   正式版 publish（17.9）でこの値を更新すること。
-PACKAGE_SPEC = "cyclegen[semantic,docx]==0.1.1rc2"
+PACKAGE_SPEC = "cyclegen[semantic,docx]==0.1.1rc3"
 
 # 規律層 hook の実体ファイル名。hooks.json のマージ時に「自分のエントリ」を識別する鍵。
 # 旧来の手動配線（`~/.cyclegen/hooks/` 直置き・CYCLE14.17 期）も同名ゆえ拾えるので、
@@ -66,6 +66,7 @@ PACKAGE_SPEC = "cyclegen[semantic,docx]==0.1.1rc2"
 HOOK_SCRIPTS = (
     "remind-primer.sh",
     "remind-cycle-memory.sh",
+    "detect-memory-store-down.sh",  # CYCLE20.7（案a）
     "check-cycle-complete.sh",
     "remind-context-judgment.sh",
     "remind-knowledge-proposal.sh",
@@ -372,12 +373,25 @@ def render_config_block(*, use_path: bool) -> str:
             "# uvx 直指定。setup の実行方法（uvx / pip）に依存せず、OS も問わない。\n"
             "# extras の semantic / docx は省かないこと（省くと memory_search が縮退する）。\n"
         )
+    # ★CYCLE20.7 / F-22: Codex の `startup_timeout_sec` は既定 10 秒（公式ドキュメント）。
+    #   F-22 の対処で、起動時に単一スレッドで `import fastembed` を済ませるようにしたが、
+    #   これが WIN-01 実測で **10.30 秒**かかる（母艦は 0.27 秒。Windowsでimportが38倍遅い）。
+    #   ＝**既定のままだと、対処を入れたことで起動がタイムアウトする側に回る。**
+    #   デッドロック（∞ハング）と引き換えの 10 秒なので対処は正しいが、待つ側の設定も要る。
+    #   60 秒にしておく: preimport は `import fastembed` までで、初回モデルDL（約120秒）は
+    #   遅延のまま＝起動時には来ない。60 秒あれば足りる。
+    timeout = (
+        "# 起動の待ち時間（既定 10 秒）。Windows は import が遅く、初回起動が 10 秒を\n"
+        "# 超えることがあるため広げてある（CYCLE20.7 / F-22）。\n"
+        "startup_timeout_sec = 60\n"
+    )
     return (
         f"{BLOCK_BEGIN}\n"
         "# CycleGen の MCP サーバー設定（`cyclegen setup codex` が生成）。\n"
         f"{note}"
         "[mcp_servers.cyclegen]\n"
         f"{body}"
+        f"{timeout}"
         f"{BLOCK_END}\n"
     )
 

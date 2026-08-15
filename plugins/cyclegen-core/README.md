@@ -82,8 +82,8 @@ uvx --from "cyclegen[semantic,docx]" cyclegen setup codex --remove    # 撤去�
 ## 各ツール対応状況
 | 層 | 機構 | Claude Code | Codex CLI | 他3ツール |
 |----|------|------------|-----------|----------|
-| MCP（濠の本体） | スキル記憶ストア22ツール | `.mcp.json`（stdio直結） | `~/.codex/config.toml`（TOML読み替え） | MCP対応なら可 |
-| Skill本文 | 4自動起動スキル（agentskills.io標準） | `skills/<name>/` | `.agents/skills/<name>/`（同一標準・コピー） | 標準採用ツールは流用可 |
+| MCP（濠の本体） | スキル記憶ストア19ツール | `.mcp.json`（stdio直結） | `~/.codex/config.toml`（TOML読み替え） | MCP対応なら可 |
+| Skill本文 | 5自動起動スキル（agentskills.io標準） | `skills/<name>/` | `.agents/skills/<name>/`（同一標準・コピー） | 標準採用ツールは流用可 |
 | hook | 常時規律の毎ターン強化 | `hooks/hooks.json` | `~/.codex/hooks.json`（同名イベント） | 劣化許容 |
 | 明示コマンド | フロントドア/init | `/cyclegen-core:*`（skills＋disable-model-invocation） | `/prompts:cyclegen(-init)`（明示・deprecated機構） | 自然言語劣化 |
 | 指示ファイル（層2） | 常時規律フォールバック | `CLAUDE.md` | `AGENTS.md` | `AGENTS.md`/相当 |

@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Guided first cycle** (`onboarding` skill) — a three-step walkthrough that runs on
   first use, so the memory store is exercised (stored, then recalled after a context
   reset) before anything else is asked of you. Available on both Claude Code and Codex.
+- A discipline hook that notices when the **memory store is not answering** and says so
+  in plain words, instead of letting the session carry on as if memories were being
+  written. Silence is the failure mode this is aimed at.
 
 ### Changed
 - The MCP server is launched via `uvx` on every surface, so **uv is now a prerequisite**
@@ -54,8 +57,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   memory is never searched for by wording it no longer has.
 - The discipline hooks no longer require `jq`. They now run on a plain bash that ships
   with the system, which is what Windows and older macOS actually have.
+- `cyclegen --help` now leads with the desktop apps, which is how most people actually
+  start, and treats the terminal as the secondary route.
+- The Codex configuration written by `cyclegen setup codex` (and the manual template)
+  now sets `startup_timeout_sec = 60`. The default is 10 seconds, which is not enough
+  room for the first-run import on a cold machine.
+- The wait on the very first search (the embedding model is downloaded once, about
+  240 MB) is now announced **where the wait happens**, not only during onboarding.
+- The cycle skill no longer describes git as optional. Every supported surface expects
+  a repository, so the instructions say so without conditions.
+- Wording in the Core distribution no longer says "CycleGen Enterprise", and the plugin
+  README now states the numbers it actually ships: 19 tools, 5 auto-starting skills.
 
 ### Fixed
+- The MCP server could **hang on start-up** instead of answering the first request:
+  `fastembed` was imported from two threads at once and deadlocked. The import is now
+  done once, on a single thread, before the server starts serving. The first-run model
+  download is still deferred, so start-up stays short on a warm machine.
+- `cycle_complete` no longer names tools that Core does not ship. Descriptions are
+  handed to the assistant as-is, so naming an absent tool made it try to call one.
+- `memory_pin` no longer claims to stop time-based decay. Priority does not decay with
+  time in the first place — it moves with use and judgement.
 - Graceful degradation when the Enterprise layer is absent (`cyclegen.org` import no
   longer aborts `memory_search` / `memory_status`).
 - Repeated `dismiss` now lands exactly on the lower bound instead of a floating-point

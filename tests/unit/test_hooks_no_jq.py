@@ -394,11 +394,84 @@ def test_json_get_string_decodes_two_byte_range(tmp_path):
     assert _get(tmp_path, payload, "cwd", ensure_ascii=True) == "/tmp/café-Ω"
 
 
+# --------------------------------------------------------------------------
+# CYCLE20.7（案a）— 記憶ストア停止の検知hook
+# --------------------------------------------------------------------------
+
+
+def _auth_cache_env(jq_env: dict, home: Path, body: str | None) -> dict:
+    """`mcp-needs-auth-cache.json` を仕込んだ HOME を用意した環境を返す。"""
+    env = dict(jq_env)
+    env["HOME"] = str(home)
+    env.pop("USERPROFILE", None)
+    if body is not None:
+        d = home / ".claude"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "mcp-needs-auth-cache.json").write_text(body, encoding="utf-8")
+    return env
+
+
+def test_memory_store_down_is_silent_without_cache_file(jq_trap, tmp_path):
+    """ファイルが無いのが正常。何も言わない（これが大多数の利用者の状態）。"""
+    env, marker = jq_trap
+    r = _run("detect-memory-store-down.sh", "{}", _auth_cache_env(env, tmp_path, None))
+
+    assert r.returncode == 0, r.stderr
+    assert not marker.exists()
+    assert r.stdout.strip() == ""
+
+
+def test_memory_store_down_warns_when_cyclegen_is_flagged(jq_trap, tmp_path):
+    """★F-25 の実測形（WIN-01 2026-08-13）で警告が出ること。"""
+    env, marker = jq_trap
+    body = '{"plugin:cyclegen-core:cyclegen":{"timestamp":1786589032815,"id":"9a9d2d03e341302c"}}'
+    r = _run("detect-memory-store-down.sh", "{}", _auth_cache_env(env, tmp_path, body))
+
+    assert r.returncode == 0, r.stderr
+    assert not marker.exists()
+    out = json.loads(r.stdout)["hookSpecificOutput"]
+    assert out["hookEventName"] == "UserPromptSubmit"
+    ctx = out["additionalContext"]
+    assert "記憶ストア" in ctx
+    # ビジネス職が実行できる手順であること（F-24・F-26）。
+    assert "終了" in ctx
+    assert "mcp-needs-auth-cache.json" in ctx
+    # ★開発者向けの復旧策を提案させないこと（F-24 の再発防止）
+    assert "uvx" in ctx and "提案しないこと" in ctx
+
+
+def test_memory_store_down_ignores_other_servers(jq_trap, tmp_path):
+    """★母艦の正常例（本当に認証が要るリモートサーバ）では黙っていること。"""
+    env, marker = jq_trap
+    body = '{"claude.ai Google Calendar":{"timestamp":1785026638099,"id":"mcpsrv_01T773"}}'
+    r = _run("detect-memory-store-down.sh", "{}", _auth_cache_env(env, tmp_path, body))
+
+    assert r.returncode == 0
+    assert not marker.exists()
+    assert r.stdout.strip() == ""
+
+
+def test_memory_store_down_ignores_cyclegen_appearing_only_in_a_value(jq_trap, tmp_path):
+    """キーではなく値に cyclegen が現れただけでは誤発火しないこと。
+
+    ★json_get_string と同じ落とし穴（値の中の文字列を鍵と取り違える）を、
+      キー抽出の側でも塞いでおく。
+    """
+    env, marker = jq_trap
+    body = '{"claude.ai Google Calendar":{"note":"cyclegen is fine","id":"mcpsrv_01"}}'
+    r = _run("detect-memory-store-down.sh", "{}", _auth_cache_env(env, tmp_path, body))
+
+    assert r.returncode == 0
+    assert not marker.exists()
+    assert r.stdout.strip() == ""
+
+
 def test_all_hooks_are_covered():
     """hookが増えたらこのテストに追加すること（黙って未検証のhookが増えないように）。"""
     covered = set(ALWAYS_EMIT) | {
         "remind-cycle-memory.sh",
         "remind-knowledge-proposal.sh",
         "check-cycle-complete.sh",
+        "detect-memory-store-down.sh",
     }
     assert set(ALL_HOOKS) == covered, f"未検証のhookがある: {set(ALL_HOOKS) - covered}"

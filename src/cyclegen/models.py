@@ -1,4 +1,4 @@
-"""CycleGen Enterprise データモデル定義
+"""CycleGen データモデル定義
 
 設計書v1.1 §6 / 実装計画書§2 に基づくPydanticモデル全定義。
 3次元記憶システムの座標系（Layer × Priority × Context）を型安全に表現する。

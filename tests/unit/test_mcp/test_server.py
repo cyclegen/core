@@ -88,3 +88,77 @@ class TestMainSse:
             from cyclegen.mcp.server import main_sse
             main_sse()
             mock_mcp.run.assert_called_once_with(transport="sse")
+
+
+class TestPreimportEmbedding:
+    """CYCLE20.7 / F-22: 起動時のfastembed preimport。
+
+    背景: 遅延importのままだと主スレッドとワーカースレッドが同時に
+    `import fastembed`→`numpy` の C拡張をロードしてデッドロックし、
+    最初のツール呼び出しが返らない（WIN-01実測 150秒タイムアウト → 0.05秒）。
+    """
+
+    def test_calls_embedding_manager_create(self):
+        """preimportは EmbeddingManager.create() を1回だけ呼ぶ"""
+        with patch("cyclegen.search.embedding.EmbeddingManager.create") as mock_create:
+            from cyclegen.mcp.server import _preimport_embedding
+            _preimport_embedding()
+            mock_create.assert_called_once()
+
+    def test_survives_missing_fastembed(self):
+        """★fastembed未導入（semantic extra なし）でも起動を止めない。
+
+        create() は ImportError を握って None を返す設計だが、
+        その設計が将来変わってもサーバ起動が落ちないことを、ここで固定する。
+        """
+        with patch(
+            "cyclegen.search.embedding.EmbeddingManager.create",
+            side_effect=ImportError("No module named 'fastembed'"),
+        ):
+            from cyclegen.mcp.server import _preimport_embedding
+            _preimport_embedding()  # 例外が出なければ合格
+
+    def test_survives_unexpected_error(self):
+        """想定外の失敗（壊れたwheel等）でも起動を止めない"""
+        with patch(
+            "cyclegen.search.embedding.EmbeddingManager.create",
+            side_effect=RuntimeError("壊れたネイティブ拡張"),
+        ):
+            from cyclegen.mcp.server import _preimport_embedding
+            _preimport_embedding()
+
+    def test_main_preimports_before_run(self):
+        """★main() は mcp.run() より前に preimport する（イベントループに入る前）"""
+        calls = []
+        with patch("cyclegen.mcp.server.register_tools"), \
+             patch("cyclegen.mcp.server._preimport_embedding",
+                   side_effect=lambda: calls.append("preimport")), \
+             patch("cyclegen.mcp.server.mcp") as mock_mcp, \
+             patch("sys.argv", ["cyclegen-mcp"]):
+            mock_mcp.run.side_effect = lambda **_kw: calls.append("run")
+            from cyclegen.mcp.server import main
+            main()
+        assert calls == ["preimport", "run"]
+
+    def test_main_sse_preimports_before_run(self):
+        """★入口は2つある: cyclegen-mcp-sse でも preimport する"""
+        calls = []
+        with patch("cyclegen.mcp.server.register_tools"), \
+             patch("cyclegen.mcp.server._preimport_embedding",
+                   side_effect=lambda: calls.append("preimport")), \
+             patch("cyclegen.mcp.server.mcp") as mock_mcp:
+            mock_mcp.run.side_effect = lambda **_kw: calls.append("run")
+            from cyclegen.mcp.server import main_sse
+            main_sse()
+        assert calls == ["preimport", "run"]
+
+    def test_invalid_transport_skips_preimport(self):
+        """不正なtransportで終了するときは preimport しない（10秒待たせない）"""
+        with patch("cyclegen.mcp.server.register_tools"), \
+             patch("cyclegen.mcp.server._preimport_embedding") as mock_pre, \
+             patch("cyclegen.mcp.server.mcp"), \
+             patch("sys.argv", ["cyclegen-mcp", "--transport", "websocket"]), \
+             pytest.raises(SystemExit):
+            from cyclegen.mcp.server import main
+            main()
+        mock_pre.assert_not_called()

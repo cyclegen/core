@@ -284,6 +284,40 @@ def register_tools() -> None:
     register_finish_tools(mcp)
 
 
+def _preimport_embedding() -> None:
+    """イベントループに入る前に、単一スレッドで fastembed を import しておく（CYCLE17.6.4.1 / F-22）。
+
+    ★なぜ要るか:
+      遅延importのままだと、MCPのワーカースレッドと主スレッドが**同時に**
+      `import fastembed` → `numpy` の C拡張(.pyd/.so) をロードしにいく。
+      Pythonのimportロックとネイティブ拡張の初期化が噛み合ってデッドロックし、
+      最初のツール呼び出しが**永久に返らない**（WIN-01で実測：150秒タイムアウト → 0.05秒）。
+
+    ★なぜ Windows で出るか:
+      importそのものが極端に遅く（母艦 0.27s に対し WIN-01 は 10.30s）、
+      **競合の窓が38倍**になる。競合なので**間欠的**で、運が良ければ通ってしまう。
+
+    ★範囲を意図的に狭くしている:
+      `EmbeddingManager.create()` がするのは `import fastembed` **だけ**で、
+      モデルのロード・ダウンロードはしない（`_ensure_model()` は遅延のまま）。
+      「起動時にぜんぶ温める」にすると初回モデルDL（約120秒）まで起動時に来て、
+      今度はホスト側の起動タイムアウトに掛かる。**importの競合だけを潰す。**
+
+    ★失敗しても起動は止めない:
+      fastembed 未導入（`semantic` extra なし）でも `create()` は None を返す設計だが、
+      それ以外の想定外（壊れたwheel等）でもサーバ起動そのものは続けるべきなので握る。
+      デッドロックの回避は最適化であって、起動の前提条件ではない。
+
+    ★F-17（初回導入でMCP起動失敗）も同じ競合で説明がつく（CYCLE17.6.4.1）。
+    """
+    try:
+        from cyclegen.search.embedding import EmbeddingManager
+
+        EmbeddingManager.create()
+    except Exception:  # noqa: BLE001 — 起動そのものは止めない
+        logging.debug("embedding の preimport をとばしました", exc_info=True)
+
+
 def main() -> None:
     """MCPサーバーを起動する。
 
@@ -317,6 +351,10 @@ def main() -> None:
     if transport in ("sse", "streamable-http"):
         mcp.settings.host = os.environ.get("CYCLEGEN_HOST", "0.0.0.0")
         mcp.settings.port = int(os.environ.get("CYCLEGEN_PORT", "8000"))
+
+    # ★F-22: イベントループに入る前に、単一スレッドで fastembed を import しておく。
+    #   transportの検証が終わってから呼ぶ（不正なtransportで終了するときに10秒待たせない）。
+    _preimport_embedding()
 
     logging.info("CycleGen MCPサーバー起動 (transport=%s)", transport)
 
@@ -386,8 +424,13 @@ def main() -> None:
 
 
 def main_sse() -> None:
-    """SSEモードでMCPサーバーを起動する（cyclegen-mcp-sse コマンド用）。"""
+    """SSEモードでMCPサーバーを起動する（cyclegen-mcp-sse コマンド用）。
+
+    ★入口は2つある（CYCLE20.7）: `cyclegen-mcp`（main）と `cyclegen-mcp-sse`（ここ）。
+      同じ `mcp.run()` を通るので、F-22 の preimport も両方に要る。
+    """
     register_tools()
     mcp.settings.host = "0.0.0.0"
+    _preimport_embedding()
     logging.info("CycleGen MCPサーバー起動 (transport=sse)")
     mcp.run(transport="sse")

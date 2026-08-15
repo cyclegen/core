@@ -179,6 +179,14 @@ async def memory_status() -> str:
     return "\n".join(lines)
 
 
+# ★★CYCLE20.7 / F-19: この下の docstring に、Enterprise専用ツールの名前を書かないこと。
+#   promotion_approve / promotion_reject / memory_promote は公開Coreの19ツールに存在しない。
+#   docstring は MCP のスキーマとして**そのまま利用者とAIに渡る**ので、名前を書くと
+#   利用者とAIが存在しないツールを呼ぼうとする（WIN-01・面Bで実際に起きた）。
+#   20.6 で守れたのはコードの境界だけで、説明文のほうが境界を破っていた。
+#   ★注意書き自体もここ（通常のコメント）に置く。docstring 内に書くと、
+#     「書くな」と書いた文章ごと配布される（20.7 でこのテストに捕まった）。
+#   検算＝tests/unit/test_mcp/test_core_enterprise_boundary.py
 @mcp.tool()
 async def cycle_complete(
     summary: str,
@@ -196,8 +204,7 @@ async def cycle_complete(
     - 既に昇格済み / pending / 却下30日以内 → スキップ
 
     候補は promotion:pending タグが付与され、利用者の承認を待つ。
-    承認: promotion_approve(memory_id)
-    却下: promotion_reject(memory_id)
+    承認・却下は、利用者に「昇格して」「却下」と伝えてもらう（Org Layer 有効時のみ表示される）。
 
     Args:
         summary: CYCLE完了報告書の内容（Markdown全文）

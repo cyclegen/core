@@ -1,5 +1,5 @@
 # 3d-eval.yaml — 3次元記憶 2軸評価基準
-# CycleGen Enterprise 設計書v2 §4.4 / CYCLE12再定義
+# CycleGen 設計書v2 §4.4 / CYCLE12再定義
 #
 # memory_store で Layer/Context が省略された場合、
 # この基準がAIエディタに返され、AIが内容を読んで2軸を判定する。

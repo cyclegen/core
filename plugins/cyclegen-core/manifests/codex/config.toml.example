@@ -22,7 +22,13 @@
 # --- 推奨: uvx 直指定（実行方法・OSに依存しない） ---
 [mcp_servers.cyclegen]
 command = "uvx"
-args = ["--from", "cyclegen[semantic,docx]==0.1.1rc2", "cyclegen-mcp"]
+args = ["--from", "cyclegen[semantic,docx]==0.1.1rc3", "cyclegen-mcp"]
+# 起動の待ち時間（Codex の既定は 10 秒）。★省略しないこと（CYCLE20.7 / F-22）:
+#   サーバーは起動時に単一スレッドで fastembed を import してからツールを受け付ける
+#   （そうしないと最初のツール呼び出しがデッドロックして永久に返らない）。
+#   この import は Windows の初回で 10.30 秒かかる実測があり、既定の 10 秒に収まらない。
+#   なお初回の埋め込みモデル取得（約120秒）は起動時には走らないので、60 秒で足りる。
+startup_timeout_sec = 60
 # env を渡す場合は下のサブテーブルで（不要なら省略可）
 # [mcp_servers.cyclegen.env]
 # CYCLEGEN_HOME = "~/.cyclegen"
@@ -32,7 +38,7 @@ args = ["--from", "cyclegen[semantic,docx]==0.1.1rc2", "cyclegen-mcp"]
 #
 # ※ 版ピン（CYCLE17.3 で明示化）: 上の指定は版に固定してある。省くと「常に PyPI 最新の
 #   安定版を引く」挙動になり、pre-release（rc）で検証しても起動するのは旧安定版になる。
-#   MS1 の検証期間中は `==0.1.1rc2` に固定し、正式版 publish（17.9）で更新する。
+#   MS1 の検証期間中は `==0.1.1rc3` に固定し、正式版 publish（17.9）で更新する。
 #   同じ版指定が `.mcp.json`（CC 面）と `setup_codex.py` の PACKAGE_SPEC にもあり、
 #   3箇所の一致はテストで固定されている。
 

@@ -4,7 +4,8 @@
       {
         "hooks": [
           { "type": "command", "command": "/ABSOLUTE/PATH/TO/hooks/remind-primer.sh" },
-          { "type": "command", "command": "/ABSOLUTE/PATH/TO/hooks/remind-cycle-memory.sh" }
+          { "type": "command", "command": "/ABSOLUTE/PATH/TO/hooks/remind-cycle-memory.sh" },
+          { "type": "command", "command": "/ABSOLUTE/PATH/TO/hooks/detect-memory-store-down.sh" }
         ]
       }
     ],

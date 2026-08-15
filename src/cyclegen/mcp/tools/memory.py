@@ -289,9 +289,17 @@ async def memory_delete(memory_id: str) -> str:
 
 @mcp.tool()
 async def memory_pin(memory_id: str) -> str:
-    """記憶を重要マークする。Priority が時間減衰しなくなる。
+    """記憶を重要マークする。検索結果に📌が付き、目印として残る。
 
     ★利用者が「重要」「忘れないで」と言った時に呼ぶこと。
+
+    ★CYCLE20.7 / M-20: 「時間減衰を停止する」とは書かないこと。
+      CycleGen の Priority に**時間による自動減衰は無い**（利用増進モデル＝使われると
+      上がり、的外れだと判断されたときに memory_dismiss で下げる）。止めるものが無い。
+      この docstring は MCP のスキーマとして利用者とAIにそのまま渡るので、
+      ここに嘘を書くと、Priority 軸の中核の考えかたを配布物が自分で否定することになる。
+
+    ★Priority は pin では変わらない。優先度を上げたいときは memory_boost を使う。
 
     Args:
         memory_id: 対象の記憶ID

@@ -77,7 +77,7 @@ def test_setup_wires_config_hooks_and_skills(env):
         for group in groups
         for entry in group["hooks"]
     ]
-    assert len(commands) == 6
+    assert len(commands) == 7  # CYCLE20.7 で detect-memory-store-down.sh を追加
     for command in commands:
         # ${CLAUDE_PLUGIN_ROOT} は Codex に無いので絶対パスへ展開済みであること
         assert "${CLAUDE_PLUGIN_ROOT}" not in command
@@ -183,6 +183,36 @@ def test_release_checkout_pins_its_own_version():
     )
 
 
+def test_startup_timeout_is_widened_for_both_wirings(env):
+    """★起動の待ち時間を広げてあること（CYCLE20.7 / F-22）。
+
+    Codex の `startup_timeout_sec` は既定 **10 秒**。ところが F-22 の対処で、
+    サーバーは起動時に単一スレッドで `import fastembed` を済ませてから
+    ツールを受け付けるようになり、これが WIN-01 実測で **10.30 秒**かかる
+    （母艦 0.27 秒＝Windows では import が38倍遅い）。
+
+    ★つまり、既定のままでは**対処を入れたこと自体が起動タイムアウトを招く**。
+      ∞ハングと10秒の引き換えは正しいが、待つ側の設定も一緒に出さないと届かない。
+      「直したことと、載ったことは別」（17.3 F4）の、設定版。
+
+    自動配線（setup codex が書く config.toml）と手動配線（config.toml.example）の
+    両方で要求する。片方だけ広げても、もう片方を使った利用者は落ちる。
+    """
+    example = tomllib.loads(
+        (PAYLOAD_SRC / "manifests" / "codex" / "config.toml.example").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert example["mcp_servers"]["cyclegen"]["startup_timeout_sec"] >= 30
+
+    assert run() == 0
+    written = tomllib.loads(env.config_toml.read_text(encoding="utf-8"))
+    assert written["mcp_servers"]["cyclegen"]["startup_timeout_sec"] >= 30
+
+    # --use-path 経路（PATH 上の cyclegen-mcp を使う人）でも落とさないこと
+    assert "startup_timeout_sec" in setup_codex.render_config_block(use_path=True)
+
+
 def test_payload_is_copied_not_referenced(env):
     """配布物は必ずコピーされる（uvx キャッシュを指さない・CYCLE15.12.3 F15）。"""
     assert run() == 0
@@ -197,11 +227,11 @@ def test_payload_is_copied_not_referenced(env):
 def test_hook_scripts_are_executable(env):
     assert run() == 0
     # `_` で始まるものは hooks.json から呼ばれる hook ではなく、hook が読み込む共通部品
-    # （CYCLE20.4 で `_json.sh` を追加。jq依存を外すため）。hook本体は6本のまま。
+    # （CYCLE20.4 で `_json.sh` を追加。jq依存を外すため）。hook本体は7本（CYCLE20.7 で +1）。
     scripts = [
         p for p in (env.plugin_dir / "hooks").glob("*.sh") if not p.name.startswith("_")
     ]
-    assert len(scripts) == 6
+    assert len(scripts) == 7
     for script in scripts:
         assert script.stat().st_mode & 0o111
 
@@ -209,7 +239,7 @@ def test_hook_scripts_are_executable(env):
 def test_hook_helper_is_deployed_alongside_hooks(env):
     """`_json.sh` が hook と同じディレクトリに配置されること（CYCLE20.4 / F-6）。
 
-    hook は `BASH_SOURCE` から自分の隣を読む。配置が漏れると6本すべてが
+    hook は `BASH_SOURCE` から自分の隣を読む。配置が漏れると7本すべてが
     「_json.sh が見つかりません」で何も注入しなくなる＝規律層が丸ごと落ちる。
     """
     assert run() == 0
@@ -245,7 +275,7 @@ def test_running_twice_is_idempotent(env):
         for entry in group["hooks"]
     ]
     # 二重登録＝二重発火が起きていないこと
-    assert len(commands) == len(set(commands)) == 6
+    assert len(commands) == len(set(commands)) == 7
 
 
 def test_force_reruns_without_duplicating(env):
@@ -335,7 +365,7 @@ def test_other_hooks_are_untouched(env):
         for entry in group["hooks"]
     ]
     assert "/other/tool.sh" in commands
-    assert len(commands) == 7
+    assert len(commands) == 8  # 他ツールの1本 + CycleGenの7本
 
 
 def test_stale_manual_wiring_is_replaced(env):
@@ -369,7 +399,7 @@ def test_stale_manual_wiring_is_replaced(env):
         for entry in group["hooks"]
     ]
     assert "/Users/x/.cyclegen/hooks/remind-primer.sh" not in commands
-    assert len(commands) == 6
+    assert len(commands) == 7  # CYCLE20.7 で detect-memory-store-down.sh を追加
 
 
 def test_user_owned_skill_is_not_replaced(env):
