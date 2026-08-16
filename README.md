@@ -14,8 +14,8 @@ CycleGen turns AI collaboration into a repeatable one-hour cycle: the AI works a
 
 CycleGen Core ships an **MCP server** exposing **19 tools** for a semantic, self-ranking memory store:
 
-- **Semantic memory search** — recall the right memories by meaning, ranked across 3 axes (Layer / Priority / Context), following Miller's 7±2 to avoid overload.
-- **Store / update / pin / archive** — capture knowledge as you work; priority rises with use and decays without it.
+- **Semantic memory search** — recall the right memories by meaning, following Miller's 7±2 so a search returns a set you can actually hold in your head.
+- **Store / update / pin / archive** — capture knowledge as you work. Every memory is filed on 3 axes (Layer / Priority / Context), and **priority rises with use** — memories you rely on surface more readily, and ones that miss can be pushed down explicitly.
 - **Cycle lifecycle** — `cycle_complete` records a work cycle and surfaces promotion candidates.
 - **CycleGen Finish** (optional `docx` extra) — convert Markdown to styled `.docx`.
 
@@ -38,32 +38,54 @@ cyclegen-mcp
 - `semantic` — embeddings backend for memory search (recommended; first run downloads a small model).
 - `docx` — enables the `document_finish` / `list_finish_templates` tools.
 
-### Prerequisite: install uv (one line, every OS)
+### Prerequisite: install uv (one line per OS)
 
 The MCP server is launched through `uvx`, so **install uv first**:
 
 ```bash
 # macOS / Linux
 curl -LsSf https://astral.sh/uv/install.sh | sh
+```
 
+```powershell
 # Windows (PowerShell)
-powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+winget install --id=astral-sh.uv -e
 ```
 
 You do not need to install Python yourself — uv provides the right version and puts it on your PATH.
+On Windows, **open a new terminal window** before checking `uv --version`.
+
+> **Why not `irm ... | iex` on Windows?**
+> The one-liner published on uv's own site is rejected by the default execution policy
+> (`Restricted`) on a clean Windows 11 install:
+> `Error: PowerShell requires an execution policy in [Unrestricted, RemoteSigned, Bypass] to run uv.`
+> Working around it means loosening an OS security setting with `Set-ExecutionPolicy` — and on a
+> company-managed machine that is often locked by group policy, so it may not be possible at all.
+> `winget` asks you to press `Y` once and changes no settings. It also resolves
+> `Microsoft.VCRedist.2015+.x64` as a dependency, which the `irm | iex` path does not.
 
 ### Claude Code — use as a plugin (recommended)
 
-CycleGen ships a plugin that wires the MCP server **and** the cycle discipline (hooks, skills, approval gate) automatically — no manual MCP configuration, no cloning this repository.
+CycleGen ships a plugin that wires the MCP server **and** the cycle discipline (hooks, skills, the approval-gate protocol) automatically — no manual MCP configuration, no cloning this repository.
 
-In Claude Code, run:
+**In the desktop app, install it from the screen** — the Code tab does not accept `/plugin`:
+
+```
+Settings → Directory → Plugins → "+" (top right)
+  → Add marketplace
+  → Add from repository:  cyclegen/core
+  → install cyclegen-core from the list
+```
+
+**If you use the `claude` terminal**, these commands work instead:
 
 ```
 /plugin marketplace add cyclegen/core
 /plugin install cyclegen-core@cyclegen
 ```
 
-Then restart the session so the MCP server is picked up.
+Then restart the app so the MCP server is picked up — **nothing appears until you do**, even though
+the install reports success.
 
 ### Codex — wire it with the bundled command
 

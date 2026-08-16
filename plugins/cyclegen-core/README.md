@@ -33,19 +33,34 @@ cyclegen-core/
 フロントドア/init は `disable-model-invocation:true` の**明示起動専用**。
 ※ `onboarding` は初回限定の助走（サイクル0）。既存利用者の環境で自動起動しても、本文冒頭のガードで抜ける。
 
-## 前提: uv の導入（★1行・全OS共通）
+## 前提: uv の導入（★OSごとに1行）
 
 CycleGen の MCP サーバーは `uvx` で起動する。**先に uv を入れておくこと。**
 
 ```
 # macOS / Linux
 curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Windows (PowerShell)
-powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-Python の事前導入は不要（uv が必要な版を自動で用意する）。PATH も自動で通る。
+```
+# Windows（PowerShell）
+winget install --id=astral-sh.uv -e
+```
+
+Python の事前導入は不要（uv が必要な版を自動で用意する）。PATH も自動で通る
+（Windows は **新しいウィンドウを開いてから** `uv --version` を確認する）。
+
+> ### ★ Windows で `irm ... | iex` を使わない理由（CYCLE17.6.3／F-12・実測）
+> uv の公式サイトが案内する `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"` は、
+> **まっさらな Windows 11 の既定の実行ポリシー（Restricted）で拒否される**——
+> `Error: PowerShell requires an execution policy in [Unrestricted, RemoteSigned, Bypass] to run uv.`
+>
+> 回避には `Set-ExecutionPolicy` で **OS のセキュリティ設定をゆるめる**必要があり、
+> **会社支給PC（ドメイン参加）ではグループポリシーで固定されていて、そもそも通らないことがある。**
+> `winget` なら初回に `Y` を1回押すだけで、**設定は何も変わらない。**
+>
+> ★ 副次的な利点: `winget` は `Microsoft.VCRedist.2015+.x64` を**依存として解決する**。
+> `irm | iex` 経路にはこの解決が無く、VCRedist 不在の環境では uv の実行時に落ちうる。**winget のほうが頑健。**
 
 > なぜ uv が前提なのか: `.mcp.json` は起動コマンドを **1つしか書けず、OS 分岐の機構が無い**
 > （公式スキーマに OS 変種が存在しない）。したがって「Windows でも動く1つのコマンド」を
@@ -53,17 +68,38 @@ Python の事前導入は不要（uv が必要な版を自動で用意する）�
 > uv が無い場合は規律層の hook が毎ターン導入手順を案内する。
 
 ## 導入手順（Claude Code）
+
+### 1. インストール — ★**デスクトップアプリは画面操作で入れる**
+
+> ★ **Claude Code デスクトップアプリの Code タブでは `/plugin` が使えない**（CYCLE17.6.3／F-14・実測）。
+> 「/plugin はここでは認識されないコマンドです」と表示される。**画面から入れる:**
+
 ```
-# 1. マーケットプレイス登録 → インストール
+設定 → ディレクトリ → プラグイン → 右上の「+」
+ → 「マーケットプレイスを追加」
+ → 「リポジトリから追加」に  cyclegen/core  を入力
+ → 一覧から cyclegen-core をインストール
+```
+
+★ **インストール後、アプリを再起動する**——**成功メッセージは出るが、再起動するまで何も現れない**（F-15）。
+
+**ターミナルの `claude` を使っている場合**は、次のコマンドでも入る:
+
+```
 /plugin marketplace add cyclegen/core
 /plugin install cyclegen-core@cyclegen
+```
 
-# 2. プロジェクト初期化（標準ディレクトリ＋薄い層2 CLAUDE.md を生成）
+### 2. プロジェクト初期化（標準ディレクトリ＋薄い層2 CLAUDE.md を生成）
+```
 /cyclegen-core:init
+```
 
-# 3. 初CYCLE開始
+### 3. 初CYCLE開始
+```
 /cyclegen-core:cyclegen start      # 省略形 /cyclegen start が効けばそれでも可
 ```
+
 （開発反復時は `claude --plugin-dir ./plugins/cyclegen-core` ＋ `/reload-plugins`）
 
 ## 導入手順（Codex）
@@ -102,7 +138,8 @@ CYCLE15.3・15.12.2 判断D-1）／marketplace.json 新設と公開チャネル�
 **Codex の入手導線 `cyclegen setup codex`（M-0b・CYCLE15.12.4 実装・隔離環境で通し受入32項目PASS）**。
 
 **残**:
-- **Windows での規律層 hook**（`#!/bin/bash` 6本・`jq` 依存）は未検証。CYCLE15.11.5 の実測で分岐（Git Bash/jq があれば無改修／無ければ `shell` 指定 or Python化＝MS2候補）。**MCP 起動側は D-1 で解決済み**（この2つは別の問題）。
+- ~~**Windows での規律層 hook**（`#!/bin/bash` 6本・`jq` 依存）は未検証~~ → ★**解決済み（CYCLE20.4＋17.6.3 実機）**: **`jq` 依存を除去**（`hooks/_json.sh` を新設し、bash組み込みと `sed`/`grep` だけで JSON を扱う）。**Windows 実機（WIN-01）で hook 全数を実行し、`command not found` ゼロ**。Git Bash 経由で `.sh` が発火することも確認ずみ。**MCP 起動側は D-1 で解決済み**（この2つは別の問題）。
+- ★**規律層 hook の到達には、いま1つ例外がある（CYCLE17.6.6／F-33）**: **Codex Desktop の code mode**（`exec` の中から `ALL_TOOLS` 経由でMCPツールを呼ぶ経路）では、**PreToolUse hook が掛からない**。**hook は載っているが迂回される。** → **`manifests/codex/README.md` の「ブロック機構」の行を参照。根治はサーバ側検証（MS2）。**
 - **本体リファインとの同期方式**（軸A）= (c)ハイブリッド確定（MCPは直結で自動最新／Skill・hook本文はスナップショット＋re-sync）。**本体が別リポ化した時点で再評価**（現在は同一リポで乖離リスク小）。
 - **`permissions.allow`**: 利用者固有のため配布除外（F1 H7）。
 - **実発火検証**（スラッシュ起動・`disable-model-invocation`・init生成・Codex hooks.jsonネスト）はJAY環境の対話起動（`claude --plugin-dir` / Codex `/hooks`）に委譲。

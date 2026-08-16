@@ -58,7 +58,7 @@ from pathlib import Path
 #   （manifests/codex/config.toml.example）にもあり、**3箇所が一致していること**を
 #   tests/unit/test_cli/test_setup_codex.py で機構的に固定している（17.2 F3 の適用）。
 #   正式版 publish（17.9）でこの値を更新すること。
-PACKAGE_SPEC = "cyclegen[semantic,docx]==0.1.1rc3"
+PACKAGE_SPEC = "cyclegen[semantic,docx]==0.1.1"
 
 # 規律層 hook の実体ファイル名。hooks.json のマージ時に「自分のエントリ」を識別する鍵。
 # 旧来の手動配線（`~/.cyclegen/hooks/` 直置き・CYCLE14.17 期）も同名ゆえ拾えるので、

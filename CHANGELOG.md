@@ -5,7 +5,7 @@ All notable changes to CycleGen Core are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.1] - 2026-08-16
 
 ### Added
 - `cyclegen setup codex` — wires Codex (`~/.codex/config.toml`, `~/.codex/hooks.json`,
@@ -82,6 +82,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   longer aborts `memory_search` / `memory_status`).
 - Repeated `dismiss` now lands exactly on the lower bound instead of a floating-point
   residue just above it, so threshold-based behaviour fires when it should.
+- **The Windows install instructions did not work on a clean machine.** The uv one-liner
+  published upstream (`irm ... | iex`) is refused by the default execution policy, and the
+  usual workaround loosens an OS security setting that managed machines often lock down.
+  Windows now installs uv with `winget`, which changes no settings and additionally
+  resolves the VC++ redistributable.
+- **The plugin install instructions started with a command the desktop app rejects.**
+  `/plugin` is not accepted in the Code tab, which is the surface most people use. The
+  screen-based path is now documented first, with the terminal commands kept for `claude`
+  users, and the required restart is spelled out — nothing appears until you restart, even
+  though the install reports success.
+- Documentation no longer describes the discipline hooks as something that *blocks*
+  premature completion. On Codex, tool calls made from inside `exec` (code mode) bypass
+  `PreToolUse` hooks entirely, so the guard is a speed-bump rather than a mechanism —
+  which is what the hook itself has always said. The cycle discipline still holds; it is
+  carried by the protocol and the assistant, not by an enforcement layer.
+- Search is no longer described as *ranking* across all three axes. Memories are filed on
+  three axes, and priority moves with use, but a search without an explicit context does
+  not currently weight by Layer or Context.
 
 ## [0.1.0] - 2026-07-18
 
