@@ -115,6 +115,48 @@ uvx --from "cyclegen[semantic,docx]" cyclegen setup codex --remove    # 撤去�
 - 思考モード明示指定: `/cyclegen-core:cyclegen mode review`（review/analyze/decide/create… 12種）
 - 名前空間はプラグイン名 `cyclegen-core`。曖昧性が無ければプレフィックス省略可（`/cyclegen ...`）。
 
+## 更新のしかた（★**新しい版が出たとき**）
+
+### Claude Code
+
+**デスクトップアプリ**は導入と同じく画面から:
+
+```
+設定 → ディレクトリ → プラグイン → cyclegen-core → 更新
+```
+
+**ターミナルの `claude`** なら `/plugin update cyclegen-core`。
+
+どちらの経路でも `.mcp.json` ごと新しくなるので、**MCPサーバの版も一緒に上がる**。更新後はアプリを再起動する。
+
+### Codex — ★**`--force` を必ず付ける**
+
+```bash
+uvx --from "cyclegen[semantic,docx]" cyclegen setup codex --force
+```
+
+> ### ★★ `--force` を付けないと、半分だけ新しくなる
+> `setup codex` は**配布物（スキル・hook）は版を見て更新するが、`~/.codex/config.toml` は版を見ない**——
+> `[mcp_servers.cyclegen]` が既にあれば「変更しません」と言って飛ばす。
+>
+> その結果:
+>
+> | | |
+> |---|---|
+> | ✔ スキル・hook | **新しい版になる** |
+> | ・ `config.toml` の版ピン | ★**古いまま残る** |
+>
+> ★ **表示は成功に見え（`✔` が並ぶ）、警告も出ない。** けれど動いている MCP サーバは古い版のままなので、
+> **新しいスキルが、新しいツールを、持っていないサーバに呼びにいく**ことになる。
+>
+> ★ `--force` を付ければ `config.toml` も置き換わる（**既存の設定はバックアップ `*.cyclegen-bak` が残る**）。
+
+★ 更新できたかの確かめかた: `~/.codex/config.toml` の `args` に入っている版が、入れたばかりの版と一致していること。
+
+```bash
+grep 'cyclegen\[semantic' ~/.codex/config.toml
+```
+
 ## 各ツール対応状況
 | 層 | 機構 | Claude Code | Codex CLI | 他3ツール |
 |----|------|------------|-----------|----------|

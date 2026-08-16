@@ -107,6 +107,48 @@ This writes `~/.codex/config.toml` (MCP), `~/.codex/hooks.json` (the discipline 
 - Plugin details and what gets wired: [plugins/cyclegen-core/README.md](./plugins/cyclegen-core/README.md)
 - Wiring Codex by hand: [plugins/cyclegen-core/manifests/codex/README.md](./plugins/cyclegen-core/manifests/codex/README.md)
 
+## Updating to a newer release
+
+### Claude Code
+
+In the **desktop app**, update it the same way you installed it:
+
+```
+Settings → Directory → Plugins → cyclegen-core → Update
+```
+
+With the **`claude` terminal**: `/plugin update cyclegen-core`.
+
+Either way `.mcp.json` is replaced along with everything else, so **the MCP server moves to the new
+version too**. Restart the app afterwards.
+
+### Codex — **pass `--force`**
+
+```bash
+uvx --from "cyclegen[semantic,docx]" cyclegen setup codex --force
+```
+
+> **Without `--force` you get a half-upgrade.**
+> `setup codex` compares versions for the payload (skills and hooks) but **not** for
+> `~/.codex/config.toml`: if a `[mcp_servers.cyclegen]` block is already there, it is left alone.
+>
+> | | |
+> |---|---|
+> | Skills and hooks | **updated** |
+> | The version pin in `config.toml` | **left at the old version** |
+>
+> The output looks like a success — ticks all the way down, no warning — but the MCP server that
+> actually runs is still the old one, so **new skills end up calling tools the running server does
+> not have**.
+>
+> With `--force`, `config.toml` is replaced as well (your previous file is kept as `*.cyclegen-bak`).
+
+To check which version is actually wired:
+
+```bash
+grep 'cyclegen\[semantic' ~/.codex/config.toml
+```
+
 ## MCP client configuration (manual)
 
 ```json
